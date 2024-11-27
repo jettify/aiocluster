@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+message SynPb {
+  DigestPb digest = 2;
+}
+
+message SynAckPb {
+  DigestPb digest = 2;
+  DeltaPb delta = 3;
+}
+
+message AckPb {
+  DeltaPb delta = 3;
+}
+
+message BadClusterPb {
+  string cluster_id = 1;
+}
+
+message PacketPb {
+  string cluster_id = 1;
+  oneof msg {
+    SynPb syn= 2;
+    SynAckPb synack = 3;
+    AckPb ack = 4;
+    BadClusterPb bad_cluster = 5;
+  }
+}
+
+message AddressPb {
+  string host = 1;
+  uint32 port = 2;
+}
+
+enum VersionStatusEnumPb {
+    SET = 0;
+    DELETED = 1;
+    DELETE_AFTER_TTL = 2;
+}
+
+message NodeIdPb {
+  string name = 1;
+  uint64 generation_id = 2;
+  AddressPb gossip_advertise_addr = 3;
+}
+
+message NodeDigestPb {
+  NodeIdPb node_id = 1;
+  uint64 heartbeat = 2;
+  uint64 last_gc_version = 3;
+  uint64 max_version = 4;
+}
+
+message KeyValueUpdatePb {
+    string key =1;
+    string value =2;
+    uint64 version = 3;
+    VersionStatusEnumPb status = 4;
+}
+
+message NodeDeltaPb {
+  NodeIdPb node_id = 1;
+  uint64 from_version_excluded = 2;
+  uint64 last_gc_version = 3;
+  repeated KeyValueUpdatePb key_values = 4;
+  optional uint64 max_version = 5;
+}
+
+message DigestPb {
+  repeated NodeDigestPb node_digests = 1;
+}
+
+message DeltaPb {
+  repeated NodeDeltaPb node_deltas = 1;
+}
