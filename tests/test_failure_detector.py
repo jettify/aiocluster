@@ -97,9 +97,9 @@ def test_failure_detector(rng: Random) -> None:
     fd = FailureDetector(config)
 
     nodes = [
-        NodeId("pytest", 1, ("localhost",7001)),
-        NodeId("pytest", 2, ("localhost",7002)),
-        NodeId("pytest", 3, ("localhost",7003)),
+        NodeId("pytest", 1, ("localhost", 7001)),
+        NodeId("pytest", 2, ("localhost", 7002)),
+        NodeId("pytest", 3, ("localhost", 7003)),
     ]
 
     for _ in range(100):

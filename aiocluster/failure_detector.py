@@ -9,7 +9,10 @@ from .utils import utc_now
 
 class SamplingWindow:
     def __init__(
-        self, window_size: int, max_interval: timedelta, prior_inerval: timedelta,
+        self,
+        window_size: int,
+        max_interval: timedelta,
+        prior_inerval: timedelta,
     ):
         self._intervals = BoundedArrayStats(window_size)
         self._last_heartbeat: datetime | None = None
@@ -82,7 +85,9 @@ class FailureDetector:
         return sw.phi(ts=ts)
 
     def update_node_liveness(
-        self, gossip_id: NodeId, ts: datetime | None = None,
+        self,
+        gossip_id: NodeId,
+        ts: datetime | None = None,
     ) -> None:
         now = ts if ts is not None else utc_now()
         phi = self.phi(gossip_id, ts=now)

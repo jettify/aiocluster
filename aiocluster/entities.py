@@ -29,7 +29,7 @@ class VersionStatusEnum(IntEnum):
         return VersionStatusEnumPb.Value(self.name)
 
     @classmethod
-    def from_pb(cls, pb: VersionStatusEnumPb.ValueType) -> 'VersionStatusEnum':
+    def from_pb(cls, pb: VersionStatusEnumPb.ValueType) -> "VersionStatusEnum":
         return VersionStatusEnum(pb)
 
 
@@ -58,7 +58,8 @@ class NodeId:
 
     def to_pb(self) -> NodeIdPb:
         addr = AddressPb(
-            host=self.gossip_advertise_addr[0], port=self.gossip_advertise_addr[1],
+            host=self.gossip_advertise_addr[0],
+            port=self.gossip_advertise_addr[1],
         )
         return NodeIdPb(
             name=self.name,
@@ -72,7 +73,7 @@ class NodeId:
         return cls(pb.name, pb.generation_id, (host, port))
 
     def long_name(self) -> str:
-        host, port=self.gossip_advertise_addr
+        host, port = self.gossip_advertise_addr
         return f"{self.name}-{self.generation_id}-{host}:{port}"
 
 
@@ -85,7 +86,7 @@ class FailureDetectorConfig:
     dead_node_grace_period: timedelta = timedelta(hours=24)
 
 
-@dataclass
+@dataclass(frozen=True, eq=True, slots=True)
 class Config:
     node_id: NodeId
     cluster_id: str = "default-cluster"

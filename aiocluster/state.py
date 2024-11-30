@@ -149,7 +149,10 @@ class NodeState:
             return
         new_version = self.max_version + 1
         vv = VersionedValue(
-            value, new_version, VersionStatusEnum.DELETE_AFTER_TTL, utc_now(),
+            value,
+            new_version,
+            VersionStatusEnum.DELETE_AFTER_TTL,
+            utc_now(),
         )
         self.set_versioned(key, vv)
 
@@ -176,7 +179,8 @@ class NodeState:
         vv.status_change_ts = utc_now()
 
     def stale_key_values(
-        self, floor_version: int,
+        self,
+        floor_version: int,
     ) -> Generator[tuple[str, VersionedValue], None, None]:
         for k, v in self.key_values.items():
             if v.version > floor_version:
@@ -197,7 +201,10 @@ class NodeState:
                 continue
 
             vv = VersionedValue(
-                kv_update.value, kv_update.version, kv_update.status, now,
+                kv_update.value,
+                kv_update.version,
+                kv_update.status,
+                now,
             )
             self.set_versioned(kv_update.key, vv)
 
@@ -212,12 +219,17 @@ class NodeState:
 
     def digest(self) -> NodeDigest:
         nd = NodeDigest(
-            self.node, self.heartbeat, self.last_gc_version, self.max_version,
+            self.node,
+            self.heartbeat,
+            self.last_gc_version,
+            self.max_version,
         )
         return nd
 
     def gc_marked_for_deletion(
-        self, grace_period: timedelta, ts: datetime | None = None,
+        self,
+        grace_period: timedelta,
+        ts: datetime | None = None,
     ) -> None:
         now = ts if ts is not None else utc_now()
         max_deleted_version = self.last_gc_version
@@ -291,13 +303,17 @@ class ClusterState:
         )
 
     def gc_marked_for_deletion(
-        self, marked_for_deletion_grace_period: timedelta,
+        self,
+        marked_for_deletion_grace_period: timedelta,
     ) -> None:
         for ns in self._node_states.values():
             ns.gc_marked_for_deletion(marked_for_deletion_grace_period)
 
     def compute_partial_delta_respecting_mtu(
-        self, digest: Digest, mtu: int, secheduled_for_deleteion: set[NodeId],
+        self,
+        digest: Digest,
+        mtu: int,
+        secheduled_for_deleteion: set[NodeId],
     ) -> Delta:
         stale_nodes = []
         for node_id, node_state in self._node_states.items():

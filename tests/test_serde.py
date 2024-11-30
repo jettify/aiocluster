@@ -53,6 +53,3 @@ def test_node_delta() -> None:
     kvu = KeyValueUpdate("foo", "bar", 0, VersionStatusEnum.SET)
     nd = NodeDelta(node_id, 0, 0, [kvu], 0)
     assert_serialiation(nd, NodeDeltaPb)
-
-
-

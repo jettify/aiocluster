@@ -22,24 +22,35 @@ from .utils import decode_msg_size
 
 
 class Cluster:
-    def __init__(self, config: Config) -> None:
+    def __init__(
+        self, config: Config, initial_key_values: dict[str, str] | None = None
+    ) -> None:
         self._server = None
         self._config = config
         self._server_task = None
         self._ticker = Ticker(self._gossip_multiple, self._config.gossip_interval)
-        self._tg = asyncio.TaskGroup()
+        self._ticker_task = None
 
         self._cluster_state = ClusterState(seed_addrs=set(self._config.seed_nodes))
         self._faulure_detector = FailureDetector(config.failure_detector)
 
-
         node_state = self.self_node_state()
         node_state.inc_heartbeat()
-
-        for k, v in config.initial_key_values.items():
+        initial_key_values = initial_key_values or {}
+        for k, v in initial_key_values.items():
             node_state.set(k, v)
 
         self._prev_live_nodes = dict[NodeId, int]
+        self._tg = asyncio.TaskGroup()
+
+
+    async def __aenter__(self):
+        await self._tg.__aenter__()
+        await self._boot()
+        return self
+
+    async def __aexit__(self, et, exc, tb):
+        await self._tg.__aexit__(et, exc, tb)
 
     def _make_syn_msg(self) -> PacketPb:
         secheduled_for_deleteion = self._faulure_detector.scheduled_for_deletion_nodes()
@@ -106,15 +117,6 @@ class Cluster:
             await writer.wait_closed()
         except OSError:
             raise
-
-
-    async def __aenter__(self):
-        await self.boot()
-        await self._tg.__aenter__()
-        return self
-
-    async def __aexit__(self, et, exc, tb):
-        await self._tg.__aexit__(et, exc, tb)
 
     async def _gossip_multiple(self) -> None:
         addrs = []
@@ -187,13 +189,13 @@ class Cluster:
         for node_id in nodes:
             self._cluster_state.remove_node(node_id)
 
-    async def boot(self) -> None:
+    async def _boot(self) -> None:
         host = self._config.node_id.gossip_advertise_addr[0]
         port = self._config.node_id.gossip_advertise_addr[1]
         server = await asyncio.start_server(self._handle_message, host, port)
         self._server = server
         self._server_task = self._tg.create_task(self._serve())
-        self._ticker.start()
+        self._ticker_task = self._tg.create_task(self._ticker._tick())
         logger.debug("Booting cluster")
 
     async def shutdown(self) -> None:

@@ -9,11 +9,11 @@ license = { file = "LICENSE" }
 keywords = ["gossip", "chitchat", "aiocluster", "ScuttleButt"]
 classifiers = [
   "Development Status :: 4 - Beta",
+  "Framework :: AsyncIO",
   "Intended Audience :: Developers",
-  "Topic :: System :: Distributed Computing",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3",
-  "Framework :: AsyncIO",
+  "Topic :: System :: Distributed Computing",
 ]
 authors = [{ name = "Nickolai Novik", email = "nickolainovik@gmail.com" }]
 
@@ -31,9 +31,10 @@ dev = [
 line-length = 88
 
 [tool.ruff.lint]
-select = ["E", "W", "UP", "B", "SIM", "I", "ASYNC", "FBT", "A", "COM", "LOG"]
+select = ["E", "W", "UP", "B", "SIM", "I", "ASYNC", "FBT", "A", "LOG"]
+
 [tool.ruff.lint.per-file-ignores]
-# skip auto generated protobuf files
+# skip lints for auto generated protobuf files
 "aiocluster/protos/messages_pb2.py" = ["ALL"]
 "aiocluster/protos/messages_pb2.pyi" = ["ALL"]
 
