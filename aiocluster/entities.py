@@ -4,8 +4,6 @@ from dataclasses import field
 from datetime import datetime
 from datetime import timedelta
 from enum import IntEnum
-from types import get_original_bases
-from typing import NamedTuple
 from typing import Self
 
 from .protos.messages_pb2 import AddressPb
@@ -27,11 +25,11 @@ class VersionStatusEnum(IntEnum):
     DELETED = 1
     DELETE_AFTER_TTL = 2
 
-    def to_pb(self) -> VersionStatusEnumPb:
-        return VersionStatusEnumPb.Name(self.value)
+    def to_pb(self) -> VersionStatusEnumPb.ValueType:
+        return VersionStatusEnumPb.Value(self.name)
 
     @classmethod
-    def from_pb(cls, pb: VersionStatusEnumPb) -> Self:
+    def from_pb(cls, pb: VersionStatusEnumPb.ValueType) -> 'VersionStatusEnum':
         return VersionStatusEnum(pb)
 
 
@@ -49,20 +47,18 @@ class VersionedValue:
         )
 
 
-class Address(NamedTuple):
-    host: str
-    port: int
+Address = tuple[str, int]
 
 
 @dataclass(frozen=True, eq=True, slots=True)
 class NodeId:
     name: str
     generation_id: int = field(default_factory=time.monotonic_ns)
-    gossip_advertise_addr: Address = Address("localhost", 7001)
+    gossip_advertise_addr: Address = ("localhost", 7001)
 
     def to_pb(self) -> NodeIdPb:
         addr = AddressPb(
-            host=self.gossip_advertise_addr[0], port=self.gossip_advertise_addr[1]
+            host=self.gossip_advertise_addr[0], port=self.gossip_advertise_addr[1],
         )
         return NodeIdPb(
             name=self.name,
@@ -73,11 +69,10 @@ class NodeId:
     @classmethod
     def from_pb(cls, pb: NodeIdPb) -> Self:
         host, port = pb.gossip_advertise_addr.host, pb.gossip_advertise_addr.port
-        return cls(pb.name, pb.generation_id, Address(host, port))
+        return cls(pb.name, pb.generation_id, (host, port))
 
     def long_name(self) -> str:
-        host=self.gossip_advertise_addr[0]
-        port=self.gossip_advertise_addr[1]
+        host, port=self.gossip_advertise_addr
         return f"{self.name}-{self.generation_id}-{host}:{port}"
 
 
@@ -98,7 +93,7 @@ class Config:
     seed_nodes: list[Address] = field(default_factory=list)
     marked_for_deletion_grace_period: int = 3600 * 2  # seconds
     failure_detector: FailureDetectorConfig = field(
-        default_factory=FailureDetectorConfig
+        default_factory=FailureDetectorConfig,
     )
     max_payload_size: int = 65_507
     initial_key_values: dict[str, str] = field(default_factory=dict)

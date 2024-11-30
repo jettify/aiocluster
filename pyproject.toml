@@ -1,10 +1,21 @@
 [project]
 name = "aiocluster"
 version = "0.1.0"
-description = "Add your description here"
+description = "aiocluster"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = ["protobuf>=5.28.3"]
+license = { file = "LICENSE" }
+keywords = ["gossip", "chitchat", "aiocluster", "ScuttleButt"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Topic :: System :: Distributed Computing",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Framework :: AsyncIO",
+]
+authors = [{ name = "Nickolai Novik", email = "nickolainovik@gmail.com" }]
 
 [dependency-groups]
 dev = [
@@ -20,23 +31,11 @@ dev = [
 line-length = 88
 
 [tool.ruff.lint]
-select = [
-  # pycodestyle
-  "E",
-  # Pyflakes "F",
-  # pyupgrade
-  "UP",
-  # flake8-bugbear
-  "B",
-  # flake8-simplify
-  "SIM",
-  # isort
-  "I",
-]
+select = ["E", "W", "UP", "B", "SIM", "I", "ASYNC", "FBT", "A", "COM", "LOG"]
 [tool.ruff.lint.per-file-ignores]
 # skip auto generated protobuf files
-"aioc/protos/messages_pb2.py" = ["E", "UP", "B", "SIM", "I"]
-"aioc/protos/messages_pb2.pyi" = ["E", "UP", "B", "SIM", "I"]
+"aiocluster/protos/messages_pb2.py" = ["ALL"]
+"aiocluster/protos/messages_pb2.pyi" = ["ALL"]
 
 [tool.ruff.lint.isort]
 force-single-line = true

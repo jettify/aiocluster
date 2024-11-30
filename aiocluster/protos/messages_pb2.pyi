@@ -23,20 +23,13 @@ class _VersionStatusEnumPb:
     ValueType = typing.NewType("ValueType", builtins.int)
     V: typing_extensions.TypeAlias = ValueType
 
-class _VersionStatusEnumPbEnumTypeWrapper(
-    google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[
-        _VersionStatusEnumPb.ValueType
-    ],
-    builtins.type,
-):
+class _VersionStatusEnumPbEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[_VersionStatusEnumPb.ValueType], builtins.type):
     DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
     SET: _VersionStatusEnumPb.ValueType  # 0
     DELETED: _VersionStatusEnumPb.ValueType  # 1
     DELETE_AFTER_TTL: _VersionStatusEnumPb.ValueType  # 2
 
-class VersionStatusEnumPb(
-    _VersionStatusEnumPb, metaclass=_VersionStatusEnumPbEnumTypeWrapper
-): ...
+class VersionStatusEnumPb(_VersionStatusEnumPb, metaclass=_VersionStatusEnumPbEnumTypeWrapper): ...
 
 SET: VersionStatusEnumPb.ValueType  # 0
 DELETED: VersionStatusEnumPb.ValueType  # 1
@@ -55,9 +48,7 @@ class SynPb(google.protobuf.message.Message):
         *,
         digest: global___DigestPb | None = ...,
     ) -> None: ...
-    def HasField(
-        self, field_name: typing.Literal["digest", b"digest"]
-    ) -> builtins.bool: ...
+    def HasField(self, field_name: typing.Literal["digest", b"digest"]) -> builtins.bool: ...
     def ClearField(self, field_name: typing.Literal["digest", b"digest"]) -> None: ...
 
 global___SynPb = SynPb
@@ -78,12 +69,8 @@ class SynAckPb(google.protobuf.message.Message):
         digest: global___DigestPb | None = ...,
         delta: global___DeltaPb | None = ...,
     ) -> None: ...
-    def HasField(
-        self, field_name: typing.Literal["delta", b"delta", "digest", b"digest"]
-    ) -> builtins.bool: ...
-    def ClearField(
-        self, field_name: typing.Literal["delta", b"delta", "digest", b"digest"]
-    ) -> None: ...
+    def HasField(self, field_name: typing.Literal["delta", b"delta", "digest", b"digest"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["delta", b"delta", "digest", b"digest"]) -> None: ...
 
 global___SynAckPb = SynAckPb
 
@@ -99,9 +86,7 @@ class AckPb(google.protobuf.message.Message):
         *,
         delta: global___DeltaPb | None = ...,
     ) -> None: ...
-    def HasField(
-        self, field_name: typing.Literal["delta", b"delta"]
-    ) -> builtins.bool: ...
+    def HasField(self, field_name: typing.Literal["delta", b"delta"]) -> builtins.bool: ...
     def ClearField(self, field_name: typing.Literal["delta", b"delta"]) -> None: ...
 
 global___AckPb = AckPb
@@ -117,9 +102,7 @@ class BadClusterPb(google.protobuf.message.Message):
         *,
         cluster_id: builtins.str = ...,
     ) -> None: ...
-    def ClearField(
-        self, field_name: typing.Literal["cluster_id", b"cluster_id"]
-    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["cluster_id", b"cluster_id"]) -> None: ...
 
 global___BadClusterPb = BadClusterPb
 
@@ -150,41 +133,9 @@ class PacketPb(google.protobuf.message.Message):
         ack: global___AckPb | None = ...,
         bad_cluster: global___BadClusterPb | None = ...,
     ) -> None: ...
-    def HasField(
-        self,
-        field_name: typing.Literal[
-            "ack",
-            b"ack",
-            "bad_cluster",
-            b"bad_cluster",
-            "msg",
-            b"msg",
-            "syn",
-            b"syn",
-            "synack",
-            b"synack",
-        ],
-    ) -> builtins.bool: ...
-    def ClearField(
-        self,
-        field_name: typing.Literal[
-            "ack",
-            b"ack",
-            "bad_cluster",
-            b"bad_cluster",
-            "cluster_id",
-            b"cluster_id",
-            "msg",
-            b"msg",
-            "syn",
-            b"syn",
-            "synack",
-            b"synack",
-        ],
-    ) -> None: ...
-    def WhichOneof(
-        self, oneof_group: typing.Literal["msg", b"msg"]
-    ) -> typing.Literal["syn", "synack", "ack", "bad_cluster"] | None: ...
+    def HasField(self, field_name: typing.Literal["ack", b"ack", "bad_cluster", b"bad_cluster", "msg", b"msg", "syn", b"syn", "synack", b"synack"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["ack", b"ack", "bad_cluster", b"bad_cluster", "cluster_id", b"cluster_id", "msg", b"msg", "syn", b"syn", "synack", b"synack"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing.Literal["msg", b"msg"]) -> typing.Literal["syn", "synack", "ack", "bad_cluster"] | None: ...
 
 global___PacketPb = PacketPb
 
@@ -202,9 +153,7 @@ class AddressPb(google.protobuf.message.Message):
         host: builtins.str = ...,
         port: builtins.int = ...,
     ) -> None: ...
-    def ClearField(
-        self, field_name: typing.Literal["host", b"host", "port", b"port"]
-    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["host", b"host", "port", b"port"]) -> None: ...
 
 global___AddressPb = AddressPb
 
@@ -226,21 +175,8 @@ class NodeIdPb(google.protobuf.message.Message):
         generation_id: builtins.int = ...,
         gossip_advertise_addr: global___AddressPb | None = ...,
     ) -> None: ...
-    def HasField(
-        self,
-        field_name: typing.Literal["gossip_advertise_addr", b"gossip_advertise_addr"],
-    ) -> builtins.bool: ...
-    def ClearField(
-        self,
-        field_name: typing.Literal[
-            "generation_id",
-            b"generation_id",
-            "gossip_advertise_addr",
-            b"gossip_advertise_addr",
-            "name",
-            b"name",
-        ],
-    ) -> None: ...
+    def HasField(self, field_name: typing.Literal["gossip_advertise_addr", b"gossip_advertise_addr"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["generation_id", b"generation_id", "gossip_advertise_addr", b"gossip_advertise_addr", "name", b"name"]) -> None: ...
 
 global___NodeIdPb = NodeIdPb
 
@@ -265,22 +201,8 @@ class NodeDigestPb(google.protobuf.message.Message):
         last_gc_version: builtins.int = ...,
         max_version: builtins.int = ...,
     ) -> None: ...
-    def HasField(
-        self, field_name: typing.Literal["node_id", b"node_id"]
-    ) -> builtins.bool: ...
-    def ClearField(
-        self,
-        field_name: typing.Literal[
-            "heartbeat",
-            b"heartbeat",
-            "last_gc_version",
-            b"last_gc_version",
-            "max_version",
-            b"max_version",
-            "node_id",
-            b"node_id",
-        ],
-    ) -> None: ...
+    def HasField(self, field_name: typing.Literal["node_id", b"node_id"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["heartbeat", b"heartbeat", "last_gc_version", b"last_gc_version", "max_version", b"max_version", "node_id", b"node_id"]) -> None: ...
 
 global___NodeDigestPb = NodeDigestPb
 
@@ -304,12 +226,7 @@ class KeyValueUpdatePb(google.protobuf.message.Message):
         version: builtins.int = ...,
         status: global___VersionStatusEnumPb.ValueType = ...,
     ) -> None: ...
-    def ClearField(
-        self,
-        field_name: typing.Literal[
-            "key", b"key", "status", b"status", "value", b"value", "version", b"version"
-        ],
-    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["key", b"key", "status", b"status", "value", b"value", "version", b"version"]) -> None: ...
 
 global___KeyValueUpdatePb = KeyValueUpdatePb
 
@@ -328,11 +245,7 @@ class NodeDeltaPb(google.protobuf.message.Message):
     @property
     def node_id(self) -> global___NodeIdPb: ...
     @property
-    def key_values(
-        self,
-    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
-        global___KeyValueUpdatePb
-    ]: ...
+    def key_values(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___KeyValueUpdatePb]: ...
     def __init__(
         self,
         *,
@@ -342,37 +255,9 @@ class NodeDeltaPb(google.protobuf.message.Message):
         key_values: collections.abc.Iterable[global___KeyValueUpdatePb] | None = ...,
         max_version: builtins.int | None = ...,
     ) -> None: ...
-    def HasField(
-        self,
-        field_name: typing.Literal[
-            "_max_version",
-            b"_max_version",
-            "max_version",
-            b"max_version",
-            "node_id",
-            b"node_id",
-        ],
-    ) -> builtins.bool: ...
-    def ClearField(
-        self,
-        field_name: typing.Literal[
-            "_max_version",
-            b"_max_version",
-            "from_version_excluded",
-            b"from_version_excluded",
-            "key_values",
-            b"key_values",
-            "last_gc_version",
-            b"last_gc_version",
-            "max_version",
-            b"max_version",
-            "node_id",
-            b"node_id",
-        ],
-    ) -> None: ...
-    def WhichOneof(
-        self, oneof_group: typing.Literal["_max_version", b"_max_version"]
-    ) -> typing.Literal["max_version"] | None: ...
+    def HasField(self, field_name: typing.Literal["_max_version", b"_max_version", "max_version", b"max_version", "node_id", b"node_id"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing.Literal["_max_version", b"_max_version", "from_version_excluded", b"from_version_excluded", "key_values", b"key_values", "last_gc_version", b"last_gc_version", "max_version", b"max_version", "node_id", b"node_id"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing.Literal["_max_version", b"_max_version"]) -> typing.Literal["max_version"] | None: ...
 
 global___NodeDeltaPb = NodeDeltaPb
 
@@ -382,19 +267,13 @@ class DigestPb(google.protobuf.message.Message):
 
     NODE_DIGESTS_FIELD_NUMBER: builtins.int
     @property
-    def node_digests(
-        self,
-    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
-        global___NodeDigestPb
-    ]: ...
+    def node_digests(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___NodeDigestPb]: ...
     def __init__(
         self,
         *,
         node_digests: collections.abc.Iterable[global___NodeDigestPb] | None = ...,
     ) -> None: ...
-    def ClearField(
-        self, field_name: typing.Literal["node_digests", b"node_digests"]
-    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["node_digests", b"node_digests"]) -> None: ...
 
 global___DigestPb = DigestPb
 
@@ -404,18 +283,12 @@ class DeltaPb(google.protobuf.message.Message):
 
     NODE_DELTAS_FIELD_NUMBER: builtins.int
     @property
-    def node_deltas(
-        self,
-    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
-        global___NodeDeltaPb
-    ]: ...
+    def node_deltas(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___NodeDeltaPb]: ...
     def __init__(
         self,
         *,
         node_deltas: collections.abc.Iterable[global___NodeDeltaPb] | None = ...,
     ) -> None: ...
-    def ClearField(
-        self, field_name: typing.Literal["node_deltas", b"node_deltas"]
-    ) -> None: ...
+    def ClearField(self, field_name: typing.Literal["node_deltas", b"node_deltas"]) -> None: ...
 
 global___DeltaPb = DeltaPb

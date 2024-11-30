@@ -1,9 +1,9 @@
 import asyncio
 import logging
 
-from aioc import Cluster
-from aioc import Config
-from aioc import NodeId
+from aiocluster import Cluster
+from aiocluster import Config
+from aiocluster import NodeId
 
 
 async def main():

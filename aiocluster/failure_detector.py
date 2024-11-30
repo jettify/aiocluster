@@ -9,7 +9,7 @@ from .utils import utc_now
 
 class SamplingWindow:
     def __init__(
-        self, window_size: int, max_interval: timedelta, prior_inerval: timedelta
+        self, window_size: int, max_interval: timedelta, prior_inerval: timedelta,
     ):
         self._intervals = BoundedArrayStats(window_size)
         self._last_heartbeat: datetime | None = None
@@ -78,11 +78,11 @@ class FailureDetector:
     def phi(self, gossip_id: NodeId, ts: datetime | None = None) -> float | None:
         sw = self._node_samples.get(gossip_id)
         if sw is None:
-            return
+            return None
         return sw.phi(ts=ts)
 
     def update_node_liveness(
-        self, gossip_id: NodeId, ts: datetime | None = None
+        self, gossip_id: NodeId, ts: datetime | None = None,
     ) -> None:
         now = ts if ts is not None else utc_now()
         phi = self.phi(gossip_id, ts=now)
@@ -144,12 +144,12 @@ class BoundedArrayStats:
     def sum(self) -> float:
         return self._sum
 
-    def clear(self):
-        self._sum: float = 0.0
-        self._index: int = 0
-        self._is_filled: bool = False
+    def clear(self) -> None:
+        self._sum = 0.0
+        self._index = 0
+        self._is_filled = False
 
-    def __len__(self):
+    def __len__(self) -> int:
         if self._is_filled:
             return len(self._values)
         return self._index

@@ -1,10 +1,8 @@
-from aioc.entities import Config
-from aioc.entities import NodeId
-from aioc.server import Cluster
+import aiocluster as ac
 
 
 def test_ctor() -> None:
-    gossip = NodeId("test1", 1, ("127.0.0.1", 7000))
-    config = Config(gossip)
-    cluster = Cluster(config)
+    node = ac.NodeId("test1", 1, ("127.0.0.1", 7000))
+    config = ac.Config(node)
+    cluster = ac.Cluster(config)
     assert cluster

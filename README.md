@@ -1,8 +1,6 @@
 # aiocluster
 
-**aiocluster** is a Python 3.11+ module that can be used for cluster
-membership, failure detection, sharing configuration, and extra metadata values.
-It can be used to shard your application in a way that's scalable and fault tolerant.
+**aiocluster** is a Python 3.11+ module for distributed systems management, enabling cluster membership tracking, failure detection, configuration sharing, and metadata management. It facilitates scalable and fault-tolerant application sharding through robust cluster coordination capabilities.
 
 ## References
 

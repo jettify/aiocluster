@@ -1,28 +1,29 @@
 from collections import deque
+from datetime import datetime
 from datetime import timedelta
 from random import Random
+from typing import deque
 
 import pytest
 
-from aioc import failure_detector
-from aioc.failure_detector import BoundedArrayStats
-from aioc.failure_detector import FailureDetector
-from aioc.failure_detector import FailureDetectorConfig
-from aioc.failure_detector import SamplingWindow
-from aioc.state import NodeId
-from aioc.utils import utc_now
+from aiocluster import FailureDetectorConfig
+from aiocluster import NodeId
+from aiocluster.failure_detector import BoundedArrayStats
+from aiocluster.failure_detector import FailureDetector
+from aiocluster.failure_detector import SamplingWindow
+from aiocluster.utils import utc_now
 
 
 @pytest.fixture
-def rng():
+def rng() -> Random:
     seed = 1234
     return Random(seed)
 
 
-def test_bounded_array():
+def test_bounded_array() -> None:
     capacity = 5
     arr = BoundedArrayStats(capacity)
-    expected = deque(maxlen=capacity)
+    expected: deque[float] = deque(maxlen=capacity)
 
     for i in range(1, capacity):
         assert len(arr) < capacity
@@ -44,11 +45,11 @@ def test_bounded_array():
         assert arr.sum() == sum(expected)
 
 
-def advance(t, delta):
+def advance(t: datetime, delta: timedelta) -> datetime:
     return t + delta
 
 
-def test_sampling_window():
+def test_sampling_window() -> None:
     sw = SamplingWindow(10, timedelta(seconds=5), timedelta(seconds=2))
     now = utc_now()
     sw.report_heartbeat(now)
@@ -78,11 +79,10 @@ def test_sampling_window():
     assert sw.phi(t7) == pytest.approx(4.0 / new_mean)
 
 
-def testtest_failure_detector_does_not_see_a_node_as_alive_with_a_single_heartbeat():
+def test_failure_detector_does_not_see_a_node_as_alive_with_single_heartbeat() -> None:
     config = FailureDetectorConfig()
     fd = FailureDetector(config)
-    node_id = NodeId("pytest", 0, "localhost:7001")
-    import ipdb
+    node_id = NodeId("pytest", 0, ("localhost", 7001))
 
     fd.report_heartbeat(node_id)
     fd.update_node_liveness(node_id)
@@ -91,15 +91,15 @@ def testtest_failure_detector_does_not_see_a_node_as_alive_with_a_single_heartbe
     assert node_id not in fd.live_nodes()
 
 
-def test_failure_detector(rng: Random):
+def test_failure_detector(rng: Random) -> None:
     t = utc_now()
     config = FailureDetectorConfig()
     fd = FailureDetector(config)
 
     nodes = [
-        NodeId("pytest", 1, "localhost:7001"),
-        NodeId("pytest", 2, "localhost:7002"),
-        NodeId("pytest", 3, "localhost:7003"),
+        NodeId("pytest", 1, ("localhost",7001)),
+        NodeId("pytest", 2, ("localhost",7002)),
+        NodeId("pytest", 3, ("localhost",7003)),
     ]
 
     for _ in range(100):
