@@ -1,11 +1,11 @@
 import asyncio
 from collections.abc import Sequence
 from contextlib import asynccontextmanager
-from typing import Union
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi import Request
+from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
@@ -38,17 +38,23 @@ class Status(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     config: Config = app.state.config
-    cluster = Cluster(config)
+    kvs: dict[str, str] = app.state.initial_kv
+    cluster = Cluster(config, initial_key_values=kvs)
     app.state.cluster = cluster
     async with cluster:
         yield
-    await cluster.shutdown()
+        await cluster.shutdown()
 
 
+router = APIRouter(prefix="", tags=["cluster"])
+
+
+@router.get("/", include_in_schema=False)
 def index():
     return RedirectResponse(url="/docs")
 
 
+@router.get("/state")
 def cluster_state(request: Request) -> ClusterSnapshot:
     config: Config = request.app.state.config
     cluster: Cluster = request.app.state.cluster
@@ -61,6 +67,7 @@ def cluster_state(request: Request) -> ClusterSnapshot:
     return r
 
 
+@router.put("/kv_set")
 async def kv_set(request: Request, kv: KeyValue) -> Status:
     cluster: Cluster = request.app.state.cluster
     nd = cluster.self_node_state()
@@ -68,6 +75,7 @@ async def kv_set(request: Request, kv: KeyValue) -> Status:
     return Status(status="ok")
 
 
+@router.delete("/kv_mark")
 async def kv_mark(request: Request, k: Key) -> Status:
     cluster: Cluster = request.app.state.cluster
     nd = cluster.self_node_state()
@@ -78,24 +86,17 @@ async def kv_mark(request: Request, k: Key) -> Status:
 def make_app(
     name: str,
     gossip_port: int = 7001,
-    initial_kv:dict[str, str] | None =None,
+    initial_kv: dict[str, str] | None = None,
     seed_nodes: list[tuple[str, int]] | None = None,
 ) -> FastAPI:
     node = NodeId(name=name, gossip_advertise_addr=("127.0.0.1", gossip_port))
-
-    config = Config(
-        node_id=node, seed_nodes=seed_nodes or [], initial_key_values=initial_kv or {},
-    )
+    config = Config(node_id=node, seed_nodes=seed_nodes or [])
 
     title = f"API for {node.long_name()} cluster {config.cluster_id}"
     app = FastAPI(title=title, lifespan=lifespan)
-
-    app.get("/", include_in_schema=False)(index)
-    app.get("/state")(cluster_state)
-    app.put("/kv_set")(kv_set)
-    app.delete("/kv_mark")(kv_mark)
-
     app.state.config = config
+    app.state.initial_kv = initial_kv or {}
+    app.include_router(router)
     return app
 
 
