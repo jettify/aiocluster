@@ -1,20 +1,20 @@
 fmt:
-	ruff format aiocluster tests examples
+	uv ruff format aiocluster tests examples
 
 mypy:
-	mypy --strict aiocluster tests
+	uv mypy --strict aiocluster tests
 
 lint:
-	ruff check aiocluster tests
+	uv run ruff check aiocluster tests
 
 fix:
-	ruff check --fix aiocluster tests examples
+	uv run ruff check --fix aiocluster tests examples
 
 test:
-	pytest -sv tests/
+	uv run pytest -sv tests/
 
-activate:
-	. .venv/bin/activate
+# activate:
+# 	. .venv/bin/activate
 
 protos:
 	protoc --proto_path=./ --python_out=./  --mypy_out ./ aiocluster/protos/messages.proto

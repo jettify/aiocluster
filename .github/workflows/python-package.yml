@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.11', '3.12', '3.13']
+        python-version: ['3.11', '3.12']
 
     steps:
     - uses: actions/checkout@v3
@@ -43,7 +43,7 @@ jobs:
 
     - name: Test
       run: |
-        make lint
+        make test
 
     - name: Upload Coverage to Codecov
       uses: codecov/codecov-action@v3

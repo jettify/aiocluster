@@ -2,7 +2,6 @@ from collections import deque
 from datetime import datetime
 from datetime import timedelta
 from random import Random
-from typing import deque
 
 import pytest
 
