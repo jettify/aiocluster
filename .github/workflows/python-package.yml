@@ -36,6 +36,7 @@ jobs:
         python -m pip install codecov
         python -m pip install uv
         uv sync --all-extras --dev
+        uv pip install -e .
 
     - name: Lint
       run: |
