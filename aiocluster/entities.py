@@ -17,6 +17,7 @@ __all__ = (
     "NodeId",
     "VersionStatusEnum",
     "VersionedValue",
+    "FailureDetectorConfig"
 )
 
 
