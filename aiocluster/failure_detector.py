@@ -6,7 +6,7 @@ from .entities import FailureDetectorConfig
 from .entities import NodeId
 from .utils import utc_now
 
-__all__ = ('FailureDetector',)
+__all__ = ("FailureDetector",)
 
 
 class SamplingWindow:

@@ -2,6 +2,7 @@ import asyncio
 from asyncio import StreamReader
 from asyncio import StreamWriter
 from collections.abc import Sequence
+from logging import LoggerAdapter
 
 from .entities import Config
 from .entities import NodeId
@@ -20,7 +21,7 @@ from .ticker import Ticker
 from .utils import add_msg_size
 from .utils import decode_msg_size
 
-__all__ = ('Cluster',)
+__all__ = ("Cluster",)
 
 
 class Cluster:
@@ -35,6 +36,8 @@ class Cluster:
 
         self._cluster_state = ClusterState(seed_addrs=set(self._config.seed_nodes))
         self._faulure_detector = FailureDetector(config.failure_detector)
+        name = self._config.node_id.long_name
+        self._log = LoggerAdapter(logger, extra={"node": name}, merge_extra=True)
 
         node_state = self.self_node_state()
         node_state.inc_heartbeat()
@@ -44,7 +47,6 @@ class Cluster:
 
         self._prev_live_nodes = dict[NodeId, int]
         self._tg = asyncio.TaskGroup()
-
 
     async def __aenter__(self):
         await self._tg.__aenter__()
@@ -103,7 +105,7 @@ class Cluster:
 
     async def _gossip(self, host: str, port: int) -> None:
         name = self._config.node_id.long_name()
-        logger.debug(f'Node [{name}] gossiping with ({host}:{port}).')
+        self._log.debug(f"Node [{name}] gossiping with ({host}:{port}).")
         syn_packet = self._make_syn_msg()
         try:
             reader, writer = await asyncio.open_connection(host, port)
@@ -196,7 +198,7 @@ class Cluster:
             self._cluster_state.remove_node(node_id)
 
     async def _boot(self) -> None:
-        logger.debug(f"Booting cluster: {self.self_node_id().long_name()}")
+        self._log.debug(f"Booting cluster: {self.self_node_id().long_name()}")
         host, port = self._config.node_id.gossip_advertise_addr
         server = await asyncio.start_server(self._handle_message, host, port)
         self._server = server
@@ -204,7 +206,7 @@ class Cluster:
         self._ticker_task = self._tg.create_task(self._ticker._tick())
 
     async def shutdown(self) -> None:
-        logger.debug(f"Shutting down cluster: {self.self_node_id().long_name()}")
+        self._log.debug(f"Shutting down cluster: {self.self_node_id().long_name()}")
         if self._server is not None:
             await self._ticker.stop()
 
