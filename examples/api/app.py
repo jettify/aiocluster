@@ -3,9 +3,9 @@ from collections.abc import Sequence
 from contextlib import asynccontextmanager
 
 import uvicorn
+from fastapi import APIRouter
 from fastapi import FastAPI
 from fastapi import Request
-from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 

@@ -20,6 +20,8 @@ from .ticker import Ticker
 from .utils import add_msg_size
 from .utils import decode_msg_size
 
+__all__ = ('Cluster',)
+
 
 class Cluster:
     def __init__(
@@ -100,6 +102,8 @@ class Cluster:
         self._cluster_state.apply_delta(delta=new_delta)
 
     async def _gossip(self, host: str, port: int) -> None:
+        name = self._config.node_id.long_name()
+        logger.debug(f'Node [{name}] gossiping with ({host}:{port}).')
         syn_packet = self._make_syn_msg()
         try:
             reader, writer = await asyncio.open_connection(host, port)
@@ -122,6 +126,8 @@ class Cluster:
         addrs = []
 
         for node_id in self._cluster_state.nodes():
+            if node_id == self._config.node_id:
+                continue
             a = node_id.gossip_advertise_addr
             addrs.append((a[0], a[1]))
 
@@ -190,15 +196,15 @@ class Cluster:
             self._cluster_state.remove_node(node_id)
 
     async def _boot(self) -> None:
-        host = self._config.node_id.gossip_advertise_addr[0]
-        port = self._config.node_id.gossip_advertise_addr[1]
+        logger.debug(f"Booting cluster: {self.self_node_id().long_name()}")
+        host, port = self._config.node_id.gossip_advertise_addr
         server = await asyncio.start_server(self._handle_message, host, port)
         self._server = server
         self._server_task = self._tg.create_task(self._serve())
         self._ticker_task = self._tg.create_task(self._ticker._tick())
-        logger.debug("Booting cluster")
 
     async def shutdown(self) -> None:
+        logger.debug(f"Shutting down cluster: {self.self_node_id().long_name()}")
         if self._server is not None:
             await self._ticker.stop()
 
