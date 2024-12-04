@@ -39,6 +39,13 @@ select = ["E", "W", "UP", "B", "SIM", "I", "ASYNC", "FBT", "A", "LOG"]
 "aiocluster/protos/messages_pb2.py" = ["ALL"]
 "aiocluster/protos/messages_pb2.pyi" = ["ALL"]
 
+[tool.ruff.format]
+# skip formating for auto generated protobuf files
+exclude = [
+  "aiocluster/protos/messages_pb2.py",
+  "aiocluster/protos/messages_pb2.pyi",
+]
+
 [tool.ruff.lint.isort]
 force-single-line = true
 split-on-trailing-comma = true
