@@ -22,5 +22,5 @@ protos:
 	#protoc --proto_path=./ --python_out=./  --pyi_out=./ aiocluster/protos/messages.proto
 
 cov cover coverage:
-	uv run pytest -s -v  --cov-report term --cov-report html --cov aiocluster ./tests
+	uv run pytest -s -v --junitxml=junit.xml -o junit_family=legacy --cov-report term --cov-report html --cov aiocluster ./tests
 	@echo "open file://`pwd`/htmlcov/index.html"
