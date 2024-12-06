@@ -9,7 +9,6 @@ from .entities import NodeId
 from .failure_detector import FailureDetector
 from .log import logger
 from .protos.messages_pb2 import AckPb
-from .protos.messages_pb2 import NodeIdPb
 from .protos.messages_pb2 import PacketPb
 from .protos.messages_pb2 import SynAckPb
 from .protos.messages_pb2 import SynPb
@@ -155,9 +154,6 @@ class Cluster:
 
     async def _handle_message(self, reader: StreamReader, writer: StreamWriter) -> None:
         self.self_node_state().inc_heartbeat()
-        # import pprint
-
-        # pprint.pprint(self._cluster_state._node_states)
 
         raw_msg = await self._read_message(reader)
         syn_packet = PacketPb.FromString(raw_msg)
@@ -176,7 +172,7 @@ class Cluster:
         await writer.wait_closed()
 
     def _report_heartbeat(self, node_id: NodeId, heartbeat_value: int) -> None:
-        if node_id == self.self_node_id():
+        if node_id == self.self_node_id:
             return
         node_state = self._cluster_state.node_state_or_default(node_id)
         if node_state.apply_heartbeat(heartbeat_value):
@@ -184,7 +180,7 @@ class Cluster:
 
     def _update_node_liveness(self) -> None:
         for node_id in self._cluster_state.nodes():
-            if node_id == self.self_node_id():
+            if node_id == self.self_node_id:
                 continue
             self._faulure_detector.update_node_liveness(node_id)
         # TODO: add event for new nodes
@@ -198,7 +194,7 @@ class Cluster:
             self._cluster_state.remove_node(node_id)
 
     async def _boot(self) -> None:
-        self._log.debug(f"Booting cluster: {self.self_node_id().long_name()}")
+        self._log.debug(f"Booting cluster: {self.self_node_id.long_name()}")
         host, port = self._config.node_id.gossip_advertise_addr
         server = await asyncio.start_server(self._handle_message, host, port)
         self._server = server
@@ -206,7 +202,7 @@ class Cluster:
         self._ticker_task = self._tg.create_task(self._ticker._tick())
 
     async def shutdown(self) -> None:
-        self._log.debug(f"Shutting down cluster: {self.self_node_id().long_name()}")
+        self._log.debug(f"Shutting down cluster: {self.self_node_id.long_name()}")
         if self._server is not None:
             await self._ticker.stop()
 
@@ -217,11 +213,12 @@ class Cluster:
     def self_node_state(self) -> NodeState:
         return self._cluster_state.node_state_or_default(self._config.node_id)
 
+    @property
     def self_node_id(self) -> NodeId:
         return self._config.node_id
 
     def live_nodes(self) -> Sequence[NodeId]:
-        return [self.self_node_id()] + self._faulure_detector.live_nodes()
+        return [self.self_node_id] + self._faulure_detector.live_nodes()
 
     def dead_nodes(self) -> Sequence[NodeId]:
         return self._faulure_detector.dead_nodes()

@@ -6,6 +6,7 @@ from datetime import datetime
 from datetime import timedelta
 from typing import Self
 
+from .entities import Address
 from .entities import NodeDigest
 from .entities import NodeId
 from .entities import VersionedValue
@@ -263,13 +264,10 @@ class NodeState:
         return False
 
 
-SeedAddrs = set[tuple[str, int]]
-
-
 class ClusterState:
-    def __init__(self, seed_addrs: SeedAddrs) -> None:
+    def __init__(self, seed_addrs: set[Address]) -> None:
         self._node_states: dict[NodeId, NodeState] = {}
-        self._seed_addrs: SeedAddrs = seed_addrs
+        self._seed_addrs: set[Address] = seed_addrs
 
     def node_state(self, node_id: NodeId) -> NodeState | None:
         return self._node_states.get(node_id)
