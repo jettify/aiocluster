@@ -4,6 +4,8 @@ from asyncio import StreamWriter
 from collections.abc import Sequence
 from logging import LoggerAdapter
 from random import Random
+from types import TracebackType
+from typing import Self
 
 from .entities import Address
 from .entities import Config
@@ -29,11 +31,11 @@ class Cluster:
     def __init__(
         self, config: Config, initial_key_values: dict[str, str] | None = None
     ) -> None:
-        self._server = None
+        self._server: asyncio.Server | None = None
         self._config = config
-        self._server_task = None
+        self._server_task: asyncio.Task[None] | None = None
         self._ticker = Ticker(self._gossip_multiple, self._config.gossip_interval)
-        self._ticker_task = None
+        self._ticker_task: asyncio.Task[None] | None = None
 
         self._cluster_state = ClusterState(seed_addrs=set(self._config.seed_nodes))
         self._faulure_detector = FailureDetector(config.failure_detector)
@@ -49,13 +51,19 @@ class Cluster:
         self._prev_live_nodes = dict[NodeId, int]
         self._tg = asyncio.TaskGroup()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         await self._tg.__aenter__()
         await self._boot()
         return self
 
-    async def __aexit__(self, et, exc, tb):
+    async def __aexit__(
+        self,
+        et: type[BaseException] | None = None,
+        exc: BaseException | None = None,
+        tb: TracebackType | None = None,
+    ) -> bool | None:
         await self._tg.__aexit__(et, exc, tb)
+        return None
 
     def _make_syn_msg(self) -> PacketPb:
         secheduled_for_deleteion = self._faulure_detector.scheduled_for_deletion_nodes()
