@@ -3,7 +3,9 @@ from asyncio import StreamReader
 from asyncio import StreamWriter
 from collections.abc import Sequence
 from logging import LoggerAdapter
+from random import Random
 
+from .entities import Address
 from .entities import Config
 from .entities import NodeId
 from .failure_detector import FailureDetector
@@ -222,3 +224,61 @@ class Cluster:
 
     def dead_nodes(self) -> Sequence[NodeId]:
         return self._faulure_detector.dead_nodes()
+
+
+def select_dead_node_to_gossip_with(
+    dead_nodes: set[Address],
+    live_nodes_count: int,
+    dead_nodes_count: int,
+    rng: Random,
+) -> Address | None:
+    if not dead_nodes:
+        return None
+    selection_probability = dead_nodes_count / (live_nodes_count + 1)
+    if selection_probability > rng.random():
+        return rng.choice(list(dead_nodes))
+    return None
+
+
+def select_seed_node_to_gossip_with(
+    seed_nodes: set[Address], live_nodes_count: int, dead_nodes_count: int, rng: Random
+) -> Address | None:
+    selection_probability = len(seed_nodes) / (live_nodes_count + dead_nodes_count)
+    if live_nodes_count == 0 or rng.random() <= selection_probability:
+        return rng.choice(list(seed_nodes)) if seed_nodes else None
+    return None
+
+
+def select_nodes_for_gossip(
+    peer_nodes: set[Address],
+    live_nodes: set[Address],
+    dead_nodes: set[Address],
+    seed_nodes: set[Address],
+    rng: Random,
+    gossip_count: int = 3,
+) -> tuple[list[Address], Address | None, Address | None]:
+    live_nodes_count = len(live_nodes)
+    dead_nodes_count = len(dead_nodes)
+
+    # Select nodes to gossip with
+    # On startup, select from cluster nodes since we don't know any live node yet
+    nodes_to_gossip = list(peer_nodes if live_nodes_count == 0 else live_nodes)
+    nodes = rng.sample(nodes_to_gossip, min(gossip_count, len(nodes_to_gossip)))
+
+    # Check if we've gossiped with a seed node
+    has_gossiped_with_a_seed_node = any(node in seed_nodes for node in nodes)
+
+    # select a dead node for potential gossip, may be it returns to cluster
+    random_dead_node_opt = select_dead_node_to_gossip_with(
+        dead_nodes, live_nodes_count, dead_nodes_count, rng
+    )
+
+    # select a seed node for potential gossip, prevents network partition
+    random_seed_node_opt = (
+        select_seed_node_to_gossip_with(
+            seed_nodes, live_nodes_count, dead_nodes_count, rng
+        )
+        if not has_gossiped_with_a_seed_node or live_nodes_count < len(seed_nodes)
+        else None
+    )
+    return nodes, random_dead_node_opt, random_seed_node_opt

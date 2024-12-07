@@ -2,6 +2,9 @@ from typing import Any
 
 from google.protobuf.message import Message
 
+from aiocluster.entities import NodeDigest
+from aiocluster.entities import NodeId
+from aiocluster.entities import VersionStatusEnum
 from aiocluster.protos.messages_pb2 import DigestPb
 from aiocluster.protos.messages_pb2 import KeyValueUpdatePb
 from aiocluster.protos.messages_pb2 import NodeDeltaPb
@@ -11,9 +14,6 @@ from aiocluster.protos.messages_pb2 import VersionStatusEnumPb
 from aiocluster.state import Digest
 from aiocluster.state import KeyValueUpdate
 from aiocluster.state import NodeDelta
-from aiocluster.state import NodeDigest
-from aiocluster.state import NodeId
-from aiocluster.state import VersionStatusEnum
 
 
 def assert_serialiation(message: Any, PbType: type[Message]) -> None:
