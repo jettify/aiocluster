@@ -99,7 +99,6 @@ class Config:
         default_factory=FailureDetectorConfig,
     )
     max_payload_size: int = 65_507
-    initial_key_values: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, eq=True, slots=True)
