@@ -11,12 +11,20 @@ async def main():
     node2_id = NodeId(name="simple2", gossip_advertise_addr=("127.0.0.1", 7001))
     node3_id = NodeId(name="simple3", gossip_advertise_addr=("127.0.0.1", 7002))
 
-    config1 = Config(node_id=node1_id, gossip_interval=3)
+    config1 = Config(
+        node_id=node1_id, gossip_interval=3, cluster_id="simple-aiocluster"
+    )
     config2 = Config(
-        node_id=node2_id, gossip_interval=3, seed_nodes=[("127.0.0.1", 7000)]
+        node_id=node2_id,
+        gossip_interval=3,
+        seed_nodes=[("127.0.0.1", 7000)],
+        cluster_id="simple-aiocluster",
     )
     config3 = Config(
-        node_id=node3_id, gossip_interval=3, seed_nodes=[("127.0.0.1", 7001)]
+        node_id=node3_id,
+        gossip_interval=3,
+        seed_nodes=[("127.0.0.1", 7001)],
+        cluster_id="simple-aiocluster",
     )
 
     cluster1 = Cluster(config1, initial_key_values={"cluster": "1"})

@@ -26,6 +26,7 @@ dev = [
   "pytest>=8.3.3",
   "ruff>=0.7.3",
   "pytest-cov>=6.0.0",
+  "pytest-asyncio>=0.24.0",
 ]
 
 [tool.ruff]
