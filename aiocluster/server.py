@@ -2,6 +2,7 @@ import asyncio
 from asyncio import StreamReader
 from asyncio import StreamWriter
 from collections.abc import Sequence
+from datetime import timedelta
 from logging import LoggerAdapter
 from random import Random
 from types import TracebackType
@@ -13,6 +14,7 @@ from .entities import NodeId
 from .failure_detector import FailureDetector
 from .log import logger
 from .protos.messages_pb2 import AckPb
+from .protos.messages_pb2 import BadClusterPb
 from .protos.messages_pb2 import PacketPb
 from .protos.messages_pb2 import SynAckPb
 from .protos.messages_pb2 import SynPb
@@ -29,7 +31,10 @@ __all__ = ("Cluster",)
 
 class Cluster:
     def __init__(
-        self, config: Config, initial_key_values: dict[str, str] | None = None
+        self,
+        config: Config,
+        initial_key_values: dict[str, str] | None = None,
+        rng: Random | None = None,
     ) -> None:
         self._server: asyncio.Server | None = None
         self._config = config
@@ -45,11 +50,13 @@ class Cluster:
         node_state = self.self_node_state()
         node_state.inc_heartbeat()
         initial_key_values = initial_key_values or {}
+
         for k, v in initial_key_values.items():
             node_state.set(k, v)
 
         self._prev_live_nodes = dict[NodeId, int]
         self._tg = asyncio.TaskGroup()
+        self._rng: Random = Random() if rng is None else rng
 
     async def __aenter__(self) -> Self:
         await self._tg.__aenter__()
@@ -112,9 +119,9 @@ class Cluster:
         new_delta = Delta.from_pb(packet.ack.delta)
         self._cluster_state.apply_delta(delta=new_delta)
 
-    async def _gossip(self, host: str, port: int) -> None:
+    async def _gossip(self, host: str, port: int, node_label: str = "live") -> None:
         name = self._config.node_id.long_name()
-        self._log.debug(f"Node [{name}] gossiping with ({host}:{port}).")
+        self._log.debug(f"Node [{name}] gossiping with {node_label} ({host}:{port}).")
         syn_packet = self._make_syn_msg()
         try:
             reader, writer = await asyncio.open_connection(host, port)
@@ -122,11 +129,17 @@ class Cluster:
             await writer.drain()
 
             raw_msg = await self._read_message(reader)
-            synac_packet = PacketPb.FromString(raw_msg)
-            ack_packet = self._handle_synac_msg(synac_packet)
+            packet = PacketPb.FromString(raw_msg)
+            if packet.WhichOneof("msg") == "bad_cluster":
+                self._log.warning(
+                    f"Got uexpected gossip message from wrong "
+                    f"cluster: {syn_packet.cluster_id}"
+                )
+            else:
+                ack_packet = self._handle_synac_msg(packet)
 
-            writer.write(add_msg_size(ack_packet.SerializeToString()))
-            await writer.drain()
+                writer.write(add_msg_size(ack_packet.SerializeToString()))
+                await writer.drain()
 
             writer.close()
             await writer.wait_closed()
@@ -139,15 +152,47 @@ class Cluster:
         for node_id in self._cluster_state.nodes():
             if node_id == self._config.node_id:
                 continue
+
             a = node_id.gossip_advertise_addr
             addrs.append((a[0], a[1]))
 
-        for a in self._config.seed_nodes:
-            addrs.append((a[0], a[1]))
+        dead_nodes = {
+            n.gossip_advertise_addr for n in self._faulure_detector.dead_nodes()
+        }
+        live_nodes = {
+            n.gossip_advertise_addr for n in self._faulure_detector.live_nodes()
+        }
+        peer_nodes = {
+            n.gossip_advertise_addr
+            for n in self._cluster_state._node_states
+            if n != self._config.node_id
+        }
+
+        seed_nodes = set(self._config.seed_nodes)
+
+        gossip_nodes, gossip_dead, gossip_seed = select_nodes_for_gossip(
+            peer_nodes,
+            live_nodes,
+            dead_nodes,
+            seed_nodes,
+            rng=self._rng,
+            gossip_count=self._config.gossip_count,
+        )
+
+        node_state = self.self_node_state()
+        node_state.inc_heartbeat()
+        period = timedelta(seconds=self._config.marked_for_deletion_grace_period)
+        self._cluster_state.gc_marked_for_deletion(period)
 
         async with asyncio.TaskGroup() as tg:
-            for host, port in addrs:
-                tg.create_task(self._gossip(host, port))
+            for host, port in gossip_nodes:
+                tg.create_task(self._gossip(host, port, node_label="live"))
+            if gossip_dead is not None:
+                host, port = gossip_dead
+                tg.create_task(self._gossip(host, port, node_label="dead"))
+            if gossip_seed is not None:
+                host, port = gossip_seed
+                tg.create_task(self._gossip(host, port, node_label="seed"))
 
         self._update_node_liveness()
 
@@ -168,15 +213,21 @@ class Cluster:
         raw_msg = await self._read_message(reader)
         syn_packet = PacketPb.FromString(raw_msg)
         assert syn_packet.syn
+        if syn_packet.cluster_id != self._config.cluster_id:
+            packet = PacketPb(
+                cluster_id=self._config.cluster_id, bad_cluster=BadClusterPb()
+            )
+            writer.write(add_msg_size(packet.SerializeToString()))
+            await writer.drain()
+        else:
+            synack = self._handle_syn_msg(syn_packet)
+            writer.write(add_msg_size(synack.SerializeToString()))
+            await writer.drain()
 
-        synack = self._handle_syn_msg(syn_packet)
-        writer.write(add_msg_size(synack.SerializeToString()))
-        await writer.drain()
-
-        raw_msg = await self._read_message(reader)
-        packet = PacketPb.FromString(raw_msg)
-        assert packet.ack
-        self._handl_ack(packet)
+            raw_msg = await self._read_message(reader)
+            packet = PacketPb.FromString(raw_msg)
+            assert packet.ack
+            self._handl_ack(packet)
 
         writer.close()
         await writer.wait_closed()
@@ -204,7 +255,10 @@ class Cluster:
             self._cluster_state.remove_node(node_id)
 
     async def _boot(self) -> None:
-        self._log.debug(f"Booting cluster: {self.self_node_id.long_name()}")
+        self._log.debug(
+            f"Booting node {self.self_node_id.long_name()} for cluster "
+            f"[{self._config.cluster_id}]"
+        )
         host, port = self._config.node_id.gossip_advertise_addr
         server = await asyncio.start_server(self._handle_message, host, port)
         self._server = server
@@ -212,7 +266,10 @@ class Cluster:
         self._ticker_task = self._tg.create_task(self._ticker._tick())
 
     async def shutdown(self) -> None:
-        self._log.debug(f"Shutting down cluster: {self.self_node_id.long_name()}")
+        self._log.debug(
+            f"Shutting down node: {self.self_node_id.long_name()} "
+            f"for cluster  [{self._config.cluster_id}]"
+        )
         if self._server is not None:
             await self._ticker.stop()
 
@@ -251,7 +308,13 @@ def select_dead_node_to_gossip_with(
 def select_seed_node_to_gossip_with(
     seed_nodes: set[Address], live_nodes_count: int, dead_nodes_count: int, rng: Random
 ) -> Address | None:
-    selection_probability = len(seed_nodes) / (live_nodes_count + dead_nodes_count)
+    selection_probability: float
+
+    if (live_nodes_count + dead_nodes_count) == 0:
+        selection_probability = 1.0
+    else:
+        selection_probability = len(seed_nodes) / (live_nodes_count + dead_nodes_count)
+
     if live_nodes_count == 0 or rng.random() <= selection_probability:
         return rng.choice(list(seed_nodes)) if seed_nodes else None
     return None

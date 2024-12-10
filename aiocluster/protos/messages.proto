@@ -13,9 +13,7 @@ message AckPb {
   DeltaPb delta = 3;
 }
 
-message BadClusterPb {
-  string cluster_id = 1;
-}
+message BadClusterPb {}
 
 message PacketPb {
   string cluster_id = 1;

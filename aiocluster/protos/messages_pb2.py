@@ -24,15 +24,15 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n aiocluster/protos/messages.proto\"\"\n\x05SynPb\x12\x19\n\x06\x64igest\x18\x02 \x01(\x0b\x32\t.DigestPb\">\n\x08SynAckPb\x12\x19\n\x06\x64igest\x18\x02 \x01(\x0b\x32\t.DigestPb\x12\x17\n\x05\x64\x65lta\x18\x03 \x01(\x0b\x32\x08.DeltaPb\" \n\x05\x41\x63kPb\x12\x17\n\x05\x64\x65lta\x18\x03 \x01(\x0b\x32\x08.DeltaPb\"\"\n\x0c\x42\x61\x64\x43lusterPb\x12\x12\n\ncluster_id\x18\x01 \x01(\t\"\x96\x01\n\x08PacketPb\x12\x12\n\ncluster_id\x18\x01 \x01(\t\x12\x15\n\x03syn\x18\x02 \x01(\x0b\x32\x06.SynPbH\x00\x12\x1b\n\x06synack\x18\x03 \x01(\x0b\x32\t.SynAckPbH\x00\x12\x15\n\x03\x61\x63k\x18\x04 \x01(\x0b\x32\x06.AckPbH\x00\x12$\n\x0b\x62\x61\x64_cluster\x18\x05 \x01(\x0b\x32\r.BadClusterPbH\x00\x42\x05\n\x03msg\"\'\n\tAddressPb\x12\x0c\n\x04host\x18\x01 \x01(\t\x12\x0c\n\x04port\x18\x02 \x01(\r\"Z\n\x08NodeIdPb\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x15\n\rgeneration_id\x18\x02 \x01(\x04\x12)\n\x15gossip_advertise_addr\x18\x03 \x01(\x0b\x32\n.AddressPb\"k\n\x0cNodeDigestPb\x12\x1a\n\x07node_id\x18\x01 \x01(\x0b\x32\t.NodeIdPb\x12\x11\n\theartbeat\x18\x02 \x01(\x04\x12\x17\n\x0flast_gc_version\x18\x03 \x01(\x04\x12\x13\n\x0bmax_version\x18\x04 \x01(\x04\"e\n\x10KeyValueUpdatePb\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\x12\x0f\n\x07version\x18\x03 \x01(\x04\x12$\n\x06status\x18\x04 \x01(\x0e\x32\x14.VersionStatusEnumPb\"\xb2\x01\n\x0bNodeDeltaPb\x12\x1a\n\x07node_id\x18\x01 \x01(\x0b\x32\t.NodeIdPb\x12\x1d\n\x15\x66rom_version_excluded\x18\x02 \x01(\x04\x12\x17\n\x0flast_gc_version\x18\x03 \x01(\x04\x12%\n\nkey_values\x18\x04 \x03(\x0b\x32\x11.KeyValueUpdatePb\x12\x18\n\x0bmax_version\x18\x05 \x01(\x04H\x00\x88\x01\x01\x42\x0e\n\x0c_max_version\"/\n\x08\x44igestPb\x12#\n\x0cnode_digests\x18\x01 \x03(\x0b\x32\r.NodeDigestPb\",\n\x07\x44\x65ltaPb\x12!\n\x0bnode_deltas\x18\x01 \x03(\x0b\x32\x0c.NodeDeltaPb*A\n\x13VersionStatusEnumPb\x12\x07\n\x03SET\x10\x00\x12\x0b\n\x07\x44\x45LETED\x10\x01\x12\x14\n\x10\x44\x45LETE_AFTER_TTL\x10\x02\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n aiocluster/protos/messages.proto\"\"\n\x05SynPb\x12\x19\n\x06\x64igest\x18\x02 \x01(\x0b\x32\t.DigestPb\">\n\x08SynAckPb\x12\x19\n\x06\x64igest\x18\x02 \x01(\x0b\x32\t.DigestPb\x12\x17\n\x05\x64\x65lta\x18\x03 \x01(\x0b\x32\x08.DeltaPb\" \n\x05\x41\x63kPb\x12\x17\n\x05\x64\x65lta\x18\x03 \x01(\x0b\x32\x08.DeltaPb\"\x0e\n\x0c\x42\x61\x64\x43lusterPb\"\x96\x01\n\x08PacketPb\x12\x12\n\ncluster_id\x18\x01 \x01(\t\x12\x15\n\x03syn\x18\x02 \x01(\x0b\x32\x06.SynPbH\x00\x12\x1b\n\x06synack\x18\x03 \x01(\x0b\x32\t.SynAckPbH\x00\x12\x15\n\x03\x61\x63k\x18\x04 \x01(\x0b\x32\x06.AckPbH\x00\x12$\n\x0b\x62\x61\x64_cluster\x18\x05 \x01(\x0b\x32\r.BadClusterPbH\x00\x42\x05\n\x03msg\"\'\n\tAddressPb\x12\x0c\n\x04host\x18\x01 \x01(\t\x12\x0c\n\x04port\x18\x02 \x01(\r\"Z\n\x08NodeIdPb\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x15\n\rgeneration_id\x18\x02 \x01(\x04\x12)\n\x15gossip_advertise_addr\x18\x03 \x01(\x0b\x32\n.AddressPb\"k\n\x0cNodeDigestPb\x12\x1a\n\x07node_id\x18\x01 \x01(\x0b\x32\t.NodeIdPb\x12\x11\n\theartbeat\x18\x02 \x01(\x04\x12\x17\n\x0flast_gc_version\x18\x03 \x01(\x04\x12\x13\n\x0bmax_version\x18\x04 \x01(\x04\"e\n\x10KeyValueUpdatePb\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\x12\x0f\n\x07version\x18\x03 \x01(\x04\x12$\n\x06status\x18\x04 \x01(\x0e\x32\x14.VersionStatusEnumPb\"\xb2\x01\n\x0bNodeDeltaPb\x12\x1a\n\x07node_id\x18\x01 \x01(\x0b\x32\t.NodeIdPb\x12\x1d\n\x15\x66rom_version_excluded\x18\x02 \x01(\x04\x12\x17\n\x0flast_gc_version\x18\x03 \x01(\x04\x12%\n\nkey_values\x18\x04 \x03(\x0b\x32\x11.KeyValueUpdatePb\x12\x18\n\x0bmax_version\x18\x05 \x01(\x04H\x00\x88\x01\x01\x42\x0e\n\x0c_max_version\"/\n\x08\x44igestPb\x12#\n\x0cnode_digests\x18\x01 \x03(\x0b\x32\r.NodeDigestPb\",\n\x07\x44\x65ltaPb\x12!\n\x0bnode_deltas\x18\x01 \x03(\x0b\x32\x0c.NodeDeltaPb*A\n\x13VersionStatusEnumPb\x12\x07\n\x03SET\x10\x00\x12\x0b\n\x07\x44\x45LETED\x10\x01\x12\x14\n\x10\x44\x45LETE_AFTER_TTL\x10\x02\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'aiocluster.protos.messages_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_VERSIONSTATUSENUMPB']._serialized_start=980
-  _globals['_VERSIONSTATUSENUMPB']._serialized_end=1045
+  _globals['_VERSIONSTATUSENUMPB']._serialized_start=960
+  _globals['_VERSIONSTATUSENUMPB']._serialized_end=1025
   _globals['_SYNPB']._serialized_start=36
   _globals['_SYNPB']._serialized_end=70
   _globals['_SYNACKPB']._serialized_start=72
@@ -40,21 +40,21 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_ACKPB']._serialized_start=136
   _globals['_ACKPB']._serialized_end=168
   _globals['_BADCLUSTERPB']._serialized_start=170
-  _globals['_BADCLUSTERPB']._serialized_end=204
-  _globals['_PACKETPB']._serialized_start=207
-  _globals['_PACKETPB']._serialized_end=357
-  _globals['_ADDRESSPB']._serialized_start=359
-  _globals['_ADDRESSPB']._serialized_end=398
-  _globals['_NODEIDPB']._serialized_start=400
-  _globals['_NODEIDPB']._serialized_end=490
-  _globals['_NODEDIGESTPB']._serialized_start=492
-  _globals['_NODEDIGESTPB']._serialized_end=599
-  _globals['_KEYVALUEUPDATEPB']._serialized_start=601
-  _globals['_KEYVALUEUPDATEPB']._serialized_end=702
-  _globals['_NODEDELTAPB']._serialized_start=705
-  _globals['_NODEDELTAPB']._serialized_end=883
-  _globals['_DIGESTPB']._serialized_start=885
-  _globals['_DIGESTPB']._serialized_end=932
-  _globals['_DELTAPB']._serialized_start=934
-  _globals['_DELTAPB']._serialized_end=978
+  _globals['_BADCLUSTERPB']._serialized_end=184
+  _globals['_PACKETPB']._serialized_start=187
+  _globals['_PACKETPB']._serialized_end=337
+  _globals['_ADDRESSPB']._serialized_start=339
+  _globals['_ADDRESSPB']._serialized_end=378
+  _globals['_NODEIDPB']._serialized_start=380
+  _globals['_NODEIDPB']._serialized_end=470
+  _globals['_NODEDIGESTPB']._serialized_start=472
+  _globals['_NODEDIGESTPB']._serialized_end=579
+  _globals['_KEYVALUEUPDATEPB']._serialized_start=581
+  _globals['_KEYVALUEUPDATEPB']._serialized_end=682
+  _globals['_NODEDELTAPB']._serialized_start=685
+  _globals['_NODEDELTAPB']._serialized_end=863
+  _globals['_DIGESTPB']._serialized_start=865
+  _globals['_DIGESTPB']._serialized_end=912
+  _globals['_DELTAPB']._serialized_start=914
+  _globals['_DELTAPB']._serialized_end=958
 # @@protoc_insertion_point(module_scope)
