@@ -182,7 +182,7 @@ class NodeState:
     def stale_key_values(
         self,
         floor_version: int,
-    ) -> Generator[tuple[str, VersionedValue], None, None]:
+    ) -> Generator[tuple[str, VersionedValue]]:
         for k, v in self.key_values.items():
             if v.version > floor_version:
                 yield (k, v)
@@ -341,11 +341,11 @@ class ClusterState:
         self,
         digest: Digest,
         mtu: int,
-        secheduled_for_deleteion: set[NodeId],
+        scheduled_for_deletion: set[NodeId],
     ) -> Delta:
         stale_nodes = []
         for node_id, node_state in self._node_states.items():
-            if node_id in secheduled_for_deleteion:
+            if node_id in scheduled_for_deletion:
                 continue
             digest_last_gc_version, digest_max_version = 0, 0
             d = digest.node_digests.get(node_id)

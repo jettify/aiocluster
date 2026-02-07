@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "aiocluster"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["protobuf>=5.28.3"]
+dependencies = ["protobuf>=6.33.4"]
 license = { file = "LICENSE" }
 keywords = ["gossip", "chitchat", "aiocluster", "ScuttleButt"]
 classifiers = [
@@ -53,7 +53,10 @@ split-on-trailing-comma = true
 
 [tool.coverage.run]
 branch = true
-
+omit = [
+  "aiocluster/protos/messages_pb2.py",
+  "aiocluster/protos/messages_pb2.pyi",
+]
 [tool.coverage.report]
 # Regexes for lines to exclude from consideration
 exclude_also = [

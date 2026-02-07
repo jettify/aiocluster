@@ -1,4 +1,5 @@
 import asyncio
+import builtins
 from asyncio import StreamReader
 from asyncio import StreamWriter
 from collections.abc import Awaitable
@@ -63,7 +64,7 @@ class Cluster:
         )
 
         self._cluster_state = ClusterState(seed_addrs=set(self._config.seed_nodes))
-        self._faulure_detector = FailureDetector(config.failure_detector)
+        self._failure_detector = FailureDetector(config.failure_detector)
         name = self._config.node_id.long_name()
         self._log = LoggerAdapter(logger, extra={"node": name}, merge_extra=True)
 
@@ -124,8 +125,8 @@ class Cluster:
             cluster_id=self._config.cluster_id,
             self_node_id=self.self_node_id,
             node_states=dict(self._cluster_state._node_states),
-            live_nodes=self._faulure_detector.live_nodes(),
-            dead_nodes=self._faulure_detector.dead_nodes(),
+            live_nodes=self._failure_detector.live_nodes(),
+            dead_nodes=self._failure_detector.dead_nodes(),
         )
 
     def on_node_join(self, callback: NodeEventCallback) -> None:
@@ -208,8 +209,8 @@ class Cluster:
         self._log.exception(f"Ticker error: {exc}")
 
     def _make_syn_msg(self) -> PacketPb:
-        secheduled_for_deleteion = self._faulure_detector.scheduled_for_deletion_nodes()
-        digest = self._cluster_state.compute_digest(set(secheduled_for_deleteion))
+        scheduled_for_deletion = self._failure_detector.scheduled_for_deletion_nodes()
+        digest = self._cluster_state.compute_digest(set(scheduled_for_deletion))
         syn = SynPb(digest=digest.to_pb())
         packet = PacketPb(cluster_id=self._config.cluster_id, syn=syn)
         return packet
@@ -219,19 +220,19 @@ class Cluster:
         for node_id, nd in digest.node_digests.items():
             self._report_heartbeat(node_id, nd.heartbeat)
 
-        secheduled_for_deleteion = self._faulure_detector.scheduled_for_deletion_nodes()
-        self_digest = self._cluster_state.compute_digest(set(secheduled_for_deleteion))
+        scheduled_for_deletion = self._failure_detector.scheduled_for_deletion_nodes()
+        self_digest = self._cluster_state.compute_digest(set(scheduled_for_deletion))
         delta = self._cluster_state.compute_partial_delta_respecting_mtu(
             digest=digest,
             mtu=self._config.max_payload_size,
-            secheduled_for_deleteion=set(secheduled_for_deleteion),
+            scheduled_for_deletion=set(scheduled_for_deletion),
         )
         synack = SynAckPb(digest=self_digest.to_pb(), delta=delta.to_pb())
         packet = PacketPb(cluster_id=self._config.cluster_id, synack=synack)
         return packet
 
     def _handle_synac_msg(self, packet: PacketPb) -> PacketPb:
-        secheduled_for_deleteion = self._faulure_detector.scheduled_for_deletion_nodes()
+        scheduled_for_deletion = self._failure_detector.scheduled_for_deletion_nodes()
         assert packet.synack
         digest = Digest.from_pb(packet.synack.digest)
         new_delta = Delta.from_pb(packet.synack.delta)
@@ -245,7 +246,7 @@ class Cluster:
         delta = self._cluster_state.compute_partial_delta_respecting_mtu(
             digest=digest,
             mtu=self._config.max_payload_size,
-            secheduled_for_deleteion=set(secheduled_for_deleteion),
+            scheduled_for_deletion=set(scheduled_for_deletion),
         )
 
         ack = AckPb(delta=delta.to_pb())
@@ -258,16 +259,33 @@ class Cluster:
             delta=new_delta, on_key_change=self._emit_key_change
         )
 
-    async def _gossip(self, host: str, port: int, node_label: str = "live") -> None:
+    async def _gossip(
+        self,
+        host: str,
+        port: int,
+        node_label: str = "live",
+        tls_name: str | None = None,
+    ) -> None:
         name = self._config.node_id.long_name()
         self._log.debug(f"Node [{name}] gossiping with {node_label} ({host}:{port}).")
         syn_packet = self._make_syn_msg()
         writer: StreamWriter | None = None
         async with self._gossip_semaphore:
             try:
+                if self._config.tls_client_context is None:
+                    open_coro = asyncio.open_connection(host, port)
+                else:
+                    server_hostname = (
+                        tls_name or self._config.tls_server_hostname or host
+                    )
+                    open_coro = asyncio.open_connection(
+                        host,
+                        port,
+                        ssl=self._config.tls_client_context,
+                        server_hostname=server_hostname,
+                    )
                 reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(host, port),
-                    timeout=self._config.connect_timeout,
+                    open_coro, timeout=self._config.connect_timeout
                 )
                 assert writer is not None
                 await self._write_message(writer, syn_packet)
@@ -305,20 +323,17 @@ class Cluster:
                         await writer.wait_closed()
 
     async def _gossip_multiple(self) -> None:
-        addrs = []
-
-        for node_id in self._cluster_state.nodes():
-            if node_id == self._config.node_id:
-                continue
-
-            a = node_id.gossip_advertise_addr
-            addrs.append((a[0], a[1]))
+        tls_name_by_addr: dict[Address, str | None] = {
+            node_id.gossip_advertise_addr: node_id.tls_name
+            for node_id in self._cluster_state.nodes()
+            if node_id != self._config.node_id
+        }
 
         dead_nodes = {
-            n.gossip_advertise_addr for n in self._faulure_detector.dead_nodes()
+            n.gossip_advertise_addr for n in self._failure_detector.dead_nodes()
         }
         live_nodes = {
-            n.gossip_advertise_addr for n in self._faulure_detector.live_nodes()
+            n.gossip_advertise_addr for n in self._failure_detector.live_nodes()
         }
         peer_nodes = {
             n.gossip_advertise_addr
@@ -344,13 +359,22 @@ class Cluster:
 
         async with asyncio.TaskGroup() as tg:
             for host, port in gossip_nodes:
-                tg.create_task(self._gossip(host, port, node_label="live"))
+                tls_name = tls_name_by_addr.get((host, port))
+                tg.create_task(
+                    self._gossip(host, port, node_label="live", tls_name=tls_name)
+                )
             if gossip_dead is not None:
                 host, port = gossip_dead
-                tg.create_task(self._gossip(host, port, node_label="dead"))
+                tls_name = tls_name_by_addr.get((host, port))
+                tg.create_task(
+                    self._gossip(host, port, node_label="dead", tls_name=tls_name)
+                )
             if gossip_seed is not None:
                 host, port = gossip_seed
-                tg.create_task(self._gossip(host, port, node_label="seed"))
+                tls_name = tls_name_by_addr.get((host, port))
+                tg.create_task(
+                    self._gossip(host, port, node_label="seed", tls_name=tls_name)
+                )
 
         self._update_node_liveness()
 
@@ -394,6 +418,10 @@ class Cluster:
                 self._log.debug("Unexpected gossip message type.")
                 return
 
+            if not self._verify_peer_tls_name(syn_packet, writer):
+                self._log.warning("TLS peer identity verification failed.")
+                return
+
             if syn_packet.cluster_id != self._config.cluster_id:
                 packet = PacketPb(
                     cluster_id=self._config.cluster_id, bad_cluster=BadClusterPb()
@@ -423,26 +451,55 @@ class Cluster:
             with suppress(Exception):
                 await writer.wait_closed()
 
+    def _peer_cert_names(self, writer: StreamWriter) -> builtins.set[str]:
+        sslobj = writer.get_extra_info("ssl_object")
+        if sslobj is None:
+            return set()
+        peercert = writer.get_extra_info("peercert") or {}
+        names: set[str] = set()
+        for typ, value in peercert.get("subjectAltName", []):
+            if typ in {"DNS", "IP Address"}:
+                names.add(value)
+        for subject in peercert.get("subject", []):
+            for key, value in subject:
+                if key == "commonName":
+                    names.add(value)
+        return names
+
+    def _verify_peer_tls_name(self, packet: PacketPb, writer: StreamWriter) -> bool:
+        if self._config.tls_server_context is None:
+            return True
+        cert_names = self._peer_cert_names(writer)
+        if not cert_names:
+            return True
+        if packet.WhichOneof("msg") != "syn" or not packet.syn:
+            return False
+        digest = Digest.from_pb(packet.syn.digest)
+        for node_id in digest.node_digests:
+            if node_id.tls_name and node_id.tls_name in cert_names:
+                return True
+        return False
+
     def _report_heartbeat(self, node_id: NodeId, heartbeat_value: int) -> None:
         if node_id == self.self_node_id:
             return
         node_state = self._cluster_state.node_state_or_default(node_id)
         if node_state.apply_heartbeat(heartbeat_value):
-            self._faulure_detector.report_heartbeat(node_id)
+            self._failure_detector.report_heartbeat(node_id)
 
     def _update_node_liveness(self) -> None:
         for node_id in self._cluster_state.nodes():
             if node_id == self.self_node_id:
                 continue
-            self._faulure_detector.update_node_liveness(node_id)
-        current_live_nodes = set(self._faulure_detector.live_nodes())
+            self._failure_detector.update_node_liveness(node_id)
+        current_live_nodes = set(self._failure_detector.live_nodes())
         for node_id in current_live_nodes - self._prev_live_nodes:
             self._emit_node_join(node_id)
         for node_id in self._prev_live_nodes - current_live_nodes:
             self._emit_node_leave(node_id)
         self._prev_live_nodes = current_live_nodes
 
-        nodes = self._faulure_detector.garbage_collect()
+        nodes = self._failure_detector.garbage_collect()
         for node_id in nodes:
             self._cluster_state.remove_node(node_id)
 
@@ -452,7 +509,12 @@ class Cluster:
             f"[{self._config.cluster_id}]"
         )
         host, port = self._config.node_id.gossip_advertise_addr
-        server = await asyncio.start_server(self._handle_message, host, port)
+        server = await asyncio.start_server(
+            self._handle_message,
+            host,
+            port,
+            ssl=self._config.tls_server_context,
+        )
         self._server = server
         self._server_task = asyncio.create_task(self._serve())
         self._ticker.start()
@@ -468,10 +530,10 @@ class Cluster:
         return self._config.node_id
 
     def live_nodes(self) -> Sequence[NodeId]:
-        return [self.self_node_id] + self._faulure_detector.live_nodes()
+        return [self.self_node_id] + self._failure_detector.live_nodes()
 
     def dead_nodes(self) -> Sequence[NodeId]:
-        return self._faulure_detector.dead_nodes()
+        return self._failure_detector.dead_nodes()
 
 
 def select_dead_node_to_gossip_with(

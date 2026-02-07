@@ -159,8 +159,10 @@ class NodeIdPb(google.protobuf.message.Message):
     NAME_FIELD_NUMBER: builtins.int
     GENERATION_ID_FIELD_NUMBER: builtins.int
     GOSSIP_ADVERTISE_ADDR_FIELD_NUMBER: builtins.int
+    TLS_NAME_FIELD_NUMBER: builtins.int
     name: builtins.str
     generation_id: builtins.int
+    tls_name: builtins.str
     @property
     def gossip_advertise_addr(self) -> global___AddressPb: ...
     def __init__(
@@ -169,9 +171,10 @@ class NodeIdPb(google.protobuf.message.Message):
         name: builtins.str = ...,
         generation_id: builtins.int = ...,
         gossip_advertise_addr: global___AddressPb | None = ...,
+        tls_name: builtins.str = ...,
     ) -> None: ...
     def HasField(self, field_name: typing.Literal["gossip_advertise_addr", b"gossip_advertise_addr"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing.Literal["generation_id", b"generation_id", "gossip_advertise_addr", b"gossip_advertise_addr", "name", b"name"]) -> None: ...
+    def ClearField(self, field_name: typing.Literal["generation_id", b"generation_id", "gossip_advertise_addr", b"gossip_advertise_addr", "name", b"name", "tls_name", b"tls_name"]) -> None: ...
 
 global___NodeIdPb = NodeIdPb
 

@@ -14,12 +14,12 @@ class SamplingWindow:
         self,
         window_size: int,
         max_interval: timedelta,
-        prior_inerval: timedelta,
+        prior_interval: timedelta,
     ):
         self._intervals = BoundedArrayStats(window_size)
         self._last_heartbeat: datetime | None = None
         self._max_inteval: timedelta = max_interval
-        self._prev_mean: float = prior_inerval.total_seconds()
+        self._prev_mean: float = prior_interval.total_seconds()
         self._prev_weight: float = 5.0
 
     def _mean(self) -> float | None:

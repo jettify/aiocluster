@@ -1,3 +1,4 @@
+import ssl
 import time
 from dataclasses import dataclass
 from dataclasses import field
@@ -56,6 +57,7 @@ class NodeId:
     name: str
     generation_id: int = field(default_factory=time.monotonic_ns)
     gossip_advertise_addr: Address = ("localhost", 7001)
+    tls_name: str | None = None
 
     def to_pb(self) -> NodeIdPb:
         addr = AddressPb(
@@ -66,12 +68,14 @@ class NodeId:
             name=self.name,
             generation_id=self.generation_id,
             gossip_advertise_addr=addr,
+            tls_name=self.tls_name or "",
         )
 
     @classmethod
     def from_pb(cls, pb: NodeIdPb) -> Self:
         host, port = pb.gossip_advertise_addr.host, pb.gossip_advertise_addr.port
-        return cls(pb.name, pb.generation_id, (host, port))
+        tls_name = pb.tls_name or None
+        return cls(pb.name, pb.generation_id, (host, port), tls_name)
 
     def long_name(self) -> str:
         host, port = self.gossip_advertise_addr
@@ -103,6 +107,9 @@ class Config:
     read_timeout: float = 3.0
     write_timeout: float = 3.0
     max_concurrent_gossip: int = 32
+    tls_server_context: ssl.SSLContext | None = None
+    tls_client_context: ssl.SSLContext | None = None
+    tls_server_hostname: str | None = None
 
 
 @dataclass(frozen=True, eq=True, slots=True)
