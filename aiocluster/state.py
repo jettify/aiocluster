@@ -368,7 +368,10 @@ class ClusterState:
                 node_deltas.append(nd)
 
             # Stop early if the current delta already hits the MTU.
-            if DeltaPb(node_deltas=[nd.to_pb() for nd in node_deltas]).ByteSize() >= mtu:
+            if (
+                DeltaPb(node_deltas=[nd.to_pb() for nd in node_deltas]).ByteSize()
+                >= mtu
+            ):
                 break
 
         return Delta(node_deltas=node_deltas)

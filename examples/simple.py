@@ -12,17 +12,20 @@ async def main():
     node3_id = NodeId(name="simple3", gossip_advertise_addr=("127.0.0.1", 7002))
 
     config1 = Config(
-        node_id=node1_id, gossip_interval=3, cluster_id="simple-aiocluster"
+        node_id=node1_id,
+        gossip_interval=1,
+        seed_nodes=[("127.0.0.1", 7002)],
+        cluster_id="simple-aiocluster",
     )
     config2 = Config(
         node_id=node2_id,
-        gossip_interval=3,
+        gossip_interval=1,
         seed_nodes=[("127.0.0.1", 7000)],
         cluster_id="simple-aiocluster",
     )
     config3 = Config(
         node_id=node3_id,
-        gossip_interval=3,
+        gossip_interval=1,
         seed_nodes=[("127.0.0.1", 7001)],
         cluster_id="simple-aiocluster",
     )
@@ -32,7 +35,7 @@ async def main():
     cluster3 = Cluster(config3, initial_key_values={"cluster": "3"})
 
     async with cluster1, cluster2, cluster3:
-        await asyncio.sleep(30)
+        await asyncio.sleep(10)
 
         await cluster1.shutdown()
         await cluster2.shutdown()
