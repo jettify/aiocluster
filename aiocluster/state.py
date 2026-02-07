@@ -171,9 +171,8 @@ class NodeState:
 
     def delete_after_ttl(self, key: str) -> None:
         vv = self.get_versioned(key)
-        if vv is not None:
+        if vv is None:
             return
-        assert vv is not None
         self.max_version += 1
         vv.status = VersionStatusEnum.DELETE_AFTER_TTL
         vv.version = self.max_version
@@ -339,17 +338,39 @@ class ClusterState:
             # )
         node_deltas: list[NodeDelta] = []
         for node_id, node_state, from_version_excluded in stale_nodes:
+            stale_kvs = [
+                KeyValueUpdate(k, v.value, v.version, v.status)
+                for k, v in node_state.key_values.items()
+                if v.version > from_version_excluded
+            ]
+            if not stale_kvs:
+                continue
+
+            # Preserve increasing version order for deterministic deltas.
+            stale_kvs.sort(key=lambda kv: kv.version)
+
             nd = NodeDelta(
                 node_id,
                 from_version_excluded,
                 node_state.last_gc_version,
-                [
-                    KeyValueUpdate(k, v.value, v.version, v.status)
-                    for k, v in node_state.key_values.items()
-                ],
+                [],
                 node_state.max_version,
             )
-            node_deltas.append(nd)
+
+            for kv in stale_kvs:
+                nd.key_values = [*nd.key_values, kv]
+                # Enforce the MTU budget using protobuf size.
+                if DeltaPb(node_deltas=[nd.to_pb()]).ByteSize() > mtu:
+                    nd.key_values = nd.key_values[:-1]
+                    break
+
+            if nd.key_values:
+                node_deltas.append(nd)
+
+            # Stop early if the current delta already hits the MTU.
+            if DeltaPb(node_deltas=[nd.to_pb() for nd in node_deltas]).ByteSize() >= mtu:
+                break
+
         return Delta(node_deltas=node_deltas)
 
 

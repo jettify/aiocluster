@@ -1,4 +1,5 @@
 # aiocluster
+
 [![GitHub Actions status for master branch](https://github.com/jettify/aiocluster/workflows/CI/badge.svg)](https://github.com/jettify/aiocluster/actions?query=workflow%3ACI)
 [![Codecov](https://codecov.io/gh/jettify/aiocluster/branch/master/graph/badge.svg)](https://codecov.io/gh/jettify/aiocluster)
 [![Python Versions](https://img.shields.io/pypi/pyversions/aiocluster.svg)](https://pypi.org/project/aiocluster)
@@ -14,5 +15,5 @@
 
 ## Requirements
 
-- Python 3.11+ (library uses `TaskGroup` feature).
+- Python 3.11+ (library uses `asyncio.TaskGroup` feature).
 - protobuf
