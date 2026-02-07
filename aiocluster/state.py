@@ -337,6 +337,7 @@ class ClusterState:
             #    stale_nodes, key=lambda v: (not v.is_unknown, v.num_stale_key_values)
             # )
         node_deltas: list[NodeDelta] = []
+        delta_pb = DeltaPb()
         for node_id, node_state, from_version_excluded in stale_nodes:
             stale_kvs = [
                 KeyValueUpdate(k, v.value, v.version, v.status)
@@ -349,29 +350,35 @@ class ClusterState:
             # Preserve increasing version order for deterministic deltas.
             stale_kvs.sort(key=lambda kv: kv.version)
 
-            nd = NodeDelta(
-                node_id,
-                from_version_excluded,
-                node_state.last_gc_version,
-                [],
-                node_state.max_version,
+            selected_kvs: list[KeyValueUpdate] = []
+            nd_pb = NodeDeltaPb(
+                node_id=node_id.to_pb(),
+                from_version_excluded=from_version_excluded,
+                last_gc_version=node_state.last_gc_version,
+                max_version=node_state.max_version,
             )
 
             for kv in stale_kvs:
-                nd.key_values = [*nd.key_values, kv]
-                # Enforce the MTU budget using protobuf size.
-                if DeltaPb(node_deltas=[nd.to_pb()]).ByteSize() > mtu:
-                    nd.key_values = nd.key_values[:-1]
+                kv_pb = kv.to_pb()
+                nd_pb.key_values.append(kv_pb)
+                if DeltaPb(node_deltas=[*delta_pb.node_deltas, nd_pb]).ByteSize() > mtu:
+                    nd_pb.key_values.pop()
                     break
+                selected_kvs.append(kv)
 
-            if nd.key_values:
-                node_deltas.append(nd)
+            if selected_kvs:
+                node_deltas.append(
+                    NodeDelta(
+                        node_id,
+                        from_version_excluded,
+                        node_state.last_gc_version,
+                        selected_kvs,
+                        node_state.max_version,
+                    )
+                )
+                delta_pb.node_deltas.append(nd_pb)
 
-            # Stop early if the current delta already hits the MTU.
-            if (
-                DeltaPb(node_deltas=[nd.to_pb() for nd in node_deltas]).ByteSize()
-                >= mtu
-            ):
+            if delta_pb.ByteSize() >= mtu:
                 break
 
         return Delta(node_deltas=node_deltas)

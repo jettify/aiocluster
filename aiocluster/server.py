@@ -143,8 +143,14 @@ class Cluster:
 
             writer.close()
             await writer.wait_closed()
-        except OSError:
-            pass
+        except (OSError, asyncio.IncompleteReadError, ValueError) as exc:
+            self._log.debug(
+                f"Node [{name}] gossip failed with {node_label} ({host}:{port}): {exc}"
+            )
+        except Exception as exc:
+            self._log.exception(
+                f"Node [{name}] gossip error with {node_label} ({host}:{port}): {exc}"
+            )
 
     async def _gossip_multiple(self) -> None:
         addrs = []
