@@ -31,11 +31,10 @@ from .ticker import Ticker
 from .utils import add_msg_size
 from .utils import decode_msg_size
 
-__all__ = ("Cluster",)
+__all__ = ("Cluster", "ClusterSnapshot")
 
 KeyChangeCallback = Callable[[NodeId, str, VersionedValue | None, VersionedValue], None]
 NodeEventCallback = Callable[[NodeId], None]
-
 
 
 @dataclass(frozen=True, slots=True)
@@ -289,18 +288,16 @@ class Cluster:
                         f"{node_label} ({host}:{port})."
                     )
             except (
+                TimeoutError,
                 OSError,
                 asyncio.IncompleteReadError,
                 ValueError,
-                asyncio.TimeoutError,
             ) as exc:
-                self._log.debug(
-                    f"Node [{name}] gossip failed with {node_label} ({host}:{port}): {exc}"
-                )
+                msg = f"[{name}] gossip failed with {node_label} ({host}:{port}): {exc}"
+                self._log.debug(msg)
             except Exception as exc:
-                self._log.exception(
-                    f"Node [{name}] gossip error with {node_label} ({host}:{port}): {exc}"
-                )
+                msg = f"[{name}] gossip error with {node_label} ({host}:{port}): {exc}"
+                self._log.exception(msg)
             finally:
                 if writer is not None:
                     writer.close()
@@ -417,12 +414,7 @@ class Cluster:
                 self._log.debug("Unexpected gossip ack message type.")
                 return
             self._handle_ack(packet)
-        except (
-            OSError,
-            asyncio.IncompleteReadError,
-            ValueError,
-            asyncio.TimeoutError,
-        ) as exc:
+        except (TimeoutError, OSError, asyncio.IncompleteReadError, ValueError) as exc:
             self._log.debug(f"Server gossip error: {exc}")
         except Exception as exc:
             self._log.exception(f"Server gossip exception: {exc}")
