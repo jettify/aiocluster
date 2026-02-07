@@ -13,7 +13,7 @@ def test_ctor() -> None:
 
 
 @pytest.mark.asyncio
-async def test_start_stop():
+async def test_start_stop() -> None:
     node_id = ac.NodeId("test1", 1, ("127.0.0.1", 7000))
     config = ac.Config(
         node_id=node_id,

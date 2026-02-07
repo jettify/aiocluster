@@ -33,10 +33,9 @@ from .utils import decode_msg_size
 
 __all__ = ("Cluster",)
 
-KeyChangeCallback = Callable[
-    [NodeId, str, VersionedValue | None, VersionedValue], Awaitable[None]
-]
-NodeEventCallback = Callable[[NodeId], Awaitable[None]]
+KeyChangeCallback = Callable[[NodeId, str, VersionedValue | None, VersionedValue], None]
+NodeEventCallback = Callable[[NodeId], None]
+
 
 
 @dataclass(frozen=True, slots=True)
@@ -271,6 +270,7 @@ class Cluster:
                     asyncio.open_connection(host, port),
                     timeout=self._config.connect_timeout,
                 )
+                assert writer is not None
                 await self._write_message(writer, syn_packet)
 
                 raw_msg = await self._read_message(reader)

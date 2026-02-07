@@ -83,8 +83,7 @@ def cluster_state(request: Request) -> ClusterSnapshot:
         cluster_id=snapshot.cluster_id,
         self_node_id=snapshot.self_node_id.long_name(),
         node_states=[
-            NodeStateView.from_node_state(nd)
-            for nd in snapshot.node_states.values()
+            NodeStateView.from_node_state(nd) for nd in snapshot.node_states.values()
         ],
         live_nodes=[n.long_name() for n in snapshot.live_nodes],
         dead_nodes=[n.long_name() for n in snapshot.dead_nodes],

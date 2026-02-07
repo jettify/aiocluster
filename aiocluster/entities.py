@@ -91,7 +91,7 @@ class FailureDetectorConfig:
 class Config:
     node_id: NodeId
     cluster_id: str = "default-cluster"
-    gossip_interval: int = 1  # seconds
+    gossip_interval: float = 1.0  # seconds
     gossip_count: int = 3  # number of gossip participants in each round
     seed_nodes: list[Address] = field(default_factory=list)
     marked_for_deletion_grace_period: int = 3600 * 2  # seconds
