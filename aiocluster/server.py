@@ -44,7 +44,7 @@ class Cluster:
 
         self._cluster_state = ClusterState(seed_addrs=set(self._config.seed_nodes))
         self._faulure_detector = FailureDetector(config.failure_detector)
-        name = self._config.node_id.long_name
+        name = self._config.node_id.long_name()
         self._log = LoggerAdapter(logger, extra={"node": name}, merge_extra=True)
 
         node_state = self.self_node_state()
@@ -144,7 +144,7 @@ class Cluster:
             writer.close()
             await writer.wait_closed()
         except OSError:
-            raise
+            pass
 
     async def _gossip_multiple(self) -> None:
         addrs = []
@@ -204,6 +204,8 @@ class Cluster:
     async def _read_message(self, reader: StreamReader) -> bytes:
         size_data = await reader.readexactly(4)
         mg_size = decode_msg_size(size_data)
+        if mg_size <= 0 or mg_size > self._config.max_payload_size:
+            raise ValueError(f"Invalid message size: {mg_size}")
         raw_message = await reader.readexactly(mg_size)
         return raw_message
 
