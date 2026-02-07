@@ -1,7 +1,11 @@
 import asyncio
 from asyncio import StreamReader
 from asyncio import StreamWriter
+from collections.abc import Awaitable
+from collections.abc import Callable
 from collections.abc import Sequence
+from contextlib import suppress
+from dataclasses import dataclass
 from datetime import timedelta
 from logging import LoggerAdapter
 from random import Random
@@ -11,6 +15,7 @@ from typing import Self
 from .entities import Address
 from .entities import Config
 from .entities import NodeId
+from .entities import VersionedValue
 from .failure_detector import FailureDetector
 from .log import logger
 from .protos.messages_pb2 import AckPb
@@ -28,6 +33,20 @@ from .utils import decode_msg_size
 
 __all__ = ("Cluster",)
 
+KeyChangeCallback = Callable[
+    [NodeId, str, VersionedValue | None, VersionedValue], Awaitable[None]
+]
+NodeEventCallback = Callable[[NodeId], Awaitable[None]]
+
+
+@dataclass(frozen=True, slots=True)
+class ClusterSnapshot:
+    cluster_id: str
+    self_node_id: NodeId
+    node_states: dict[NodeId, NodeState]
+    live_nodes: list[NodeId]
+    dead_nodes: list[NodeId]
+
 
 class Cluster:
     def __init__(
@@ -39,8 +58,11 @@ class Cluster:
         self._server: asyncio.Server | None = None
         self._config = config
         self._server_task: asyncio.Task[None] | None = None
-        self._ticker = Ticker(self._gossip_multiple, self._config.gossip_interval)
-        self._ticker_task: asyncio.Task[None] | None = None
+        self._ticker = Ticker(
+            self._gossip_multiple,
+            self._config.gossip_interval,
+            on_error=self._on_ticker_error,
+        )
 
         self._cluster_state = ClusterState(seed_addrs=set(self._config.seed_nodes))
         self._faulure_detector = FailureDetector(config.failure_detector)
@@ -54,13 +76,19 @@ class Cluster:
         for k, v in initial_key_values.items():
             node_state.set(k, v)
 
-        self._prev_live_nodes = dict[NodeId, int]
-        self._tg = asyncio.TaskGroup()
+        self._prev_live_nodes: set[NodeId] = set()
+        self._on_node_join_callbacks: list[NodeEventCallback] = []
+        self._on_node_leave_callbacks: list[NodeEventCallback] = []
+        self._on_key_change_callbacks: list[KeyChangeCallback] = []
+        self._started = False
+        self._closing = False
+        self._gossip_semaphore = asyncio.Semaphore(
+            max(1, self._config.max_concurrent_gossip)
+        )
         self._rng: Random = Random() if rng is None else rng
 
     async def __aenter__(self) -> Self:
-        await self._tg.__aenter__()
-        await self._boot()
+        await self.start()
         return self
 
     async def __aexit__(
@@ -69,8 +97,117 @@ class Cluster:
         exc: BaseException | None = None,
         tb: TracebackType | None = None,
     ) -> bool | None:
-        await self._tg.__aexit__(et, exc, tb)
+        await self.close()
         return None
+
+    async def start(self) -> None:
+        if self._started:
+            return
+        self._started = True
+        await self._boot()
+
+    async def close(self) -> None:
+        if self._closing or not self._started:
+            return
+        self._closing = True
+        await self._ticker.stop()
+        if self._server is not None:
+            self._server.close()
+            await self._server.wait_closed()
+        if self._server_task is not None:
+            self._server_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._server_task
+            self._server_task = None
+        self._server = None
+
+    def snapshot(self) -> ClusterSnapshot:
+        return ClusterSnapshot(
+            cluster_id=self._config.cluster_id,
+            self_node_id=self.self_node_id,
+            node_states=dict(self._cluster_state._node_states),
+            live_nodes=self._faulure_detector.live_nodes(),
+            dead_nodes=self._faulure_detector.dead_nodes(),
+        )
+
+    def on_node_join(self, callback: NodeEventCallback) -> None:
+        self._on_node_join_callbacks.append(callback)
+
+    def on_node_leave(self, callback: NodeEventCallback) -> None:
+        self._on_node_leave_callbacks.append(callback)
+
+    def on_key_change(self, callback: KeyChangeCallback) -> None:
+        self._on_key_change_callbacks.append(callback)
+
+    def get(self, key: str) -> str | None:
+        vv = self.self_node_state().get(key)
+        return None if vv is None else vv.value
+
+    def get_versioned(self, key: str) -> VersionedValue | None:
+        return self.self_node_state().get_versioned(key)
+
+    def set(self, key: str, value: str) -> None:
+        old_vv = self.get_versioned(key)
+        self.self_node_state().set(key, value)
+        new_vv = self.get_versioned(key)
+        self._maybe_emit_key_change(key, old_vv, new_vv)
+
+    def delete(self, key: str) -> None:
+        old_vv = self.get_versioned(key)
+        self.self_node_state().delete(key)
+        new_vv = self.get_versioned(key)
+        self._maybe_emit_key_change(key, old_vv, new_vv)
+
+    def set_with_ttl(self, key: str, value: str) -> None:
+        old_vv = self.get_versioned(key)
+        self.self_node_state().set_with_ttl(key, value)
+        new_vv = self.get_versioned(key)
+        self._maybe_emit_key_change(key, old_vv, new_vv)
+
+    def delete_after_ttl(self, key: str) -> None:
+        old_vv = self.get_versioned(key)
+        self.self_node_state().delete_after_ttl(key)
+        new_vv = self.get_versioned(key)
+        self._maybe_emit_key_change(key, old_vv, new_vv)
+
+    def _emit_key_change(
+        self,
+        node_id: NodeId,
+        key: str,
+        old_vv: VersionedValue | None,
+        new_vv: VersionedValue,
+    ) -> None:
+        for cb in self._on_key_change_callbacks:
+            cb(node_id, key, old_vv, new_vv)
+
+    def _maybe_emit_key_change(
+        self,
+        key: str,
+        old_vv: VersionedValue | None,
+        new_vv: VersionedValue | None,
+    ) -> None:
+        if new_vv is None:
+            return
+        if old_vv is None:
+            self._emit_key_change(self.self_node_id, key, None, new_vv)
+            return
+        if (
+            old_vv.version != new_vv.version
+            or old_vv.status != new_vv.status
+            or old_vv.value != new_vv.value
+        ):
+            self._emit_key_change(self.self_node_id, key, old_vv, new_vv)
+
+    def _emit_node_join(self, node_id: NodeId) -> None:
+        for cb in self._on_node_join_callbacks:
+            cb(node_id)
+
+    def _emit_node_leave(self, node_id: NodeId) -> None:
+        for cb in self._on_node_leave_callbacks:
+            cb(node_id)
+
+    def _on_ticker_error(self, exc: Exception) -> None:
+        self._log.exception(f"Ticker error: {exc}")
 
     def _make_syn_msg(self) -> PacketPb:
         secheduled_for_deleteion = self._faulure_detector.scheduled_for_deletion_nodes()
@@ -104,7 +241,9 @@ class Cluster:
         for node_id, nd in digest.node_digests.items():
             self._report_heartbeat(node_id, nd.heartbeat)
 
-        self._cluster_state.apply_delta(delta=new_delta)
+        self._cluster_state.apply_delta(
+            delta=new_delta, on_key_change=self._emit_key_change
+        )
         delta = self._cluster_state.compute_partial_delta_respecting_mtu(
             digest=digest,
             mtu=self._config.max_payload_size,
@@ -115,42 +254,58 @@ class Cluster:
         packet = PacketPb(cluster_id=self._config.cluster_id, ack=ack)
         return packet
 
-    def _handl_ack(self, packet: PacketPb) -> None:
+    def _handle_ack(self, packet: PacketPb) -> None:
         new_delta = Delta.from_pb(packet.ack.delta)
-        self._cluster_state.apply_delta(delta=new_delta)
+        self._cluster_state.apply_delta(
+            delta=new_delta, on_key_change=self._emit_key_change
+        )
 
     async def _gossip(self, host: str, port: int, node_label: str = "live") -> None:
         name = self._config.node_id.long_name()
         self._log.debug(f"Node [{name}] gossiping with {node_label} ({host}:{port}).")
         syn_packet = self._make_syn_msg()
-        try:
-            reader, writer = await asyncio.open_connection(host, port)
-            writer.write(add_msg_size(syn_packet.SerializeToString()))
-            await writer.drain()
-
-            raw_msg = await self._read_message(reader)
-            packet = PacketPb.FromString(raw_msg)
-            if packet.WhichOneof("msg") == "bad_cluster":
-                self._log.warning(
-                    f"Got uexpected gossip message from wrong "
-                    f"cluster: {syn_packet.cluster_id}"
+        writer: StreamWriter | None = None
+        async with self._gossip_semaphore:
+            try:
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(host, port),
+                    timeout=self._config.connect_timeout,
                 )
-            else:
-                ack_packet = self._handle_synac_msg(packet)
+                await self._write_message(writer, syn_packet)
 
-                writer.write(add_msg_size(ack_packet.SerializeToString()))
-                await writer.drain()
-
-            writer.close()
-            await writer.wait_closed()
-        except (OSError, asyncio.IncompleteReadError, ValueError) as exc:
-            self._log.debug(
-                f"Node [{name}] gossip failed with {node_label} ({host}:{port}): {exc}"
-            )
-        except Exception as exc:
-            self._log.exception(
-                f"Node [{name}] gossip error with {node_label} ({host}:{port}): {exc}"
-            )
+                raw_msg = await self._read_message(reader)
+                packet = PacketPb.FromString(raw_msg)
+                if packet.WhichOneof("msg") == "bad_cluster":
+                    self._log.warning(
+                        f"Got uexpected gossip message from wrong "
+                        f"cluster: {syn_packet.cluster_id}"
+                    )
+                elif packet.WhichOneof("msg") == "synack" and packet.synack:
+                    ack_packet = self._handle_synac_msg(packet)
+                    await self._write_message(writer, ack_packet)
+                else:
+                    self._log.debug(
+                        f"Node [{name}] unexpected gossip response from "
+                        f"{node_label} ({host}:{port})."
+                    )
+            except (
+                OSError,
+                asyncio.IncompleteReadError,
+                ValueError,
+                asyncio.TimeoutError,
+            ) as exc:
+                self._log.debug(
+                    f"Node [{name}] gossip failed with {node_label} ({host}:{port}): {exc}"
+                )
+            except Exception as exc:
+                self._log.exception(
+                    f"Node [{name}] gossip error with {node_label} ({host}:{port}): {exc}"
+                )
+            finally:
+                if writer is not None:
+                    writer.close()
+                    with suppress(Exception):
+                        await writer.wait_closed()
 
     async def _gossip_multiple(self) -> None:
         addrs = []
@@ -208,37 +363,73 @@ class Cluster:
             await self._server.serve_forever()
 
     async def _read_message(self, reader: StreamReader) -> bytes:
-        size_data = await reader.readexactly(4)
+        size_data = await asyncio.wait_for(
+            reader.readexactly(4),
+            timeout=self._config.read_timeout,
+        )
         mg_size = decode_msg_size(size_data)
         if mg_size <= 0 or mg_size > self._config.max_payload_size:
             raise ValueError(f"Invalid message size: {mg_size}")
-        raw_message = await reader.readexactly(mg_size)
+        raw_message = await asyncio.wait_for(
+            reader.readexactly(mg_size),
+            timeout=self._config.read_timeout,
+        )
         return raw_message
+
+    async def _write_message(self, writer: StreamWriter, packet: PacketPb) -> None:
+        writer.write(add_msg_size(packet.SerializeToString()))
+        await asyncio.wait_for(
+            writer.drain(),
+            timeout=self._config.write_timeout,
+        )
 
     async def _handle_message(self, reader: StreamReader, writer: StreamWriter) -> None:
         self.self_node_state().inc_heartbeat()
+        try:
+            raw_msg = await self._read_message(reader)
+            try:
+                syn_packet = PacketPb.FromString(raw_msg)
+            except Exception as exc:
+                self._log.debug(f"Invalid gossip packet: {exc}")
+                return
 
-        raw_msg = await self._read_message(reader)
-        syn_packet = PacketPb.FromString(raw_msg)
-        assert syn_packet.syn
-        if syn_packet.cluster_id != self._config.cluster_id:
-            packet = PacketPb(
-                cluster_id=self._config.cluster_id, bad_cluster=BadClusterPb()
-            )
-            writer.write(add_msg_size(packet.SerializeToString()))
-            await writer.drain()
-        else:
+            if syn_packet.WhichOneof("msg") != "syn" or not syn_packet.syn:
+                self._log.debug("Unexpected gossip message type.")
+                return
+
+            if syn_packet.cluster_id != self._config.cluster_id:
+                packet = PacketPb(
+                    cluster_id=self._config.cluster_id, bad_cluster=BadClusterPb()
+                )
+                await self._write_message(writer, packet)
+                return
+
             synack = self._handle_syn_msg(syn_packet)
-            writer.write(add_msg_size(synack.SerializeToString()))
-            await writer.drain()
+            await self._write_message(writer, synack)
 
             raw_msg = await self._read_message(reader)
-            packet = PacketPb.FromString(raw_msg)
-            assert packet.ack
-            self._handl_ack(packet)
-
-        writer.close()
-        await writer.wait_closed()
+            try:
+                packet = PacketPb.FromString(raw_msg)
+            except Exception as exc:
+                self._log.debug(f"Invalid gossip ack packet: {exc}")
+                return
+            if packet.WhichOneof("msg") != "ack" or not packet.ack:
+                self._log.debug("Unexpected gossip ack message type.")
+                return
+            self._handle_ack(packet)
+        except (
+            OSError,
+            asyncio.IncompleteReadError,
+            ValueError,
+            asyncio.TimeoutError,
+        ) as exc:
+            self._log.debug(f"Server gossip error: {exc}")
+        except Exception as exc:
+            self._log.exception(f"Server gossip exception: {exc}")
+        finally:
+            writer.close()
+            with suppress(Exception):
+                await writer.wait_closed()
 
     def _report_heartbeat(self, node_id: NodeId, heartbeat_value: int) -> None:
         if node_id == self.self_node_id:
@@ -252,11 +443,12 @@ class Cluster:
             if node_id == self.self_node_id:
                 continue
             self._faulure_detector.update_node_liveness(node_id)
-        # TODO: add event for new nodes
-        # current_live_nodes = [
-        #     (node_id, self._cluster_state.node_state_or_default(node_id).max_version)
-        #     for node_id in self.live_nodes
-        # ]
+        current_live_nodes = set(self._faulure_detector.live_nodes())
+        for node_id in current_live_nodes - self._prev_live_nodes:
+            self._emit_node_join(node_id)
+        for node_id in self._prev_live_nodes - current_live_nodes:
+            self._emit_node_leave(node_id)
+        self._prev_live_nodes = current_live_nodes
 
         nodes = self._faulure_detector.garbage_collect()
         for node_id in nodes:
@@ -270,20 +462,11 @@ class Cluster:
         host, port = self._config.node_id.gossip_advertise_addr
         server = await asyncio.start_server(self._handle_message, host, port)
         self._server = server
-        self._server_task = self._tg.create_task(self._serve())
-        self._ticker_task = self._tg.create_task(self._ticker._tick())
+        self._server_task = asyncio.create_task(self._serve())
+        self._ticker.start()
 
     async def shutdown(self) -> None:
-        self._log.debug(
-            f"Shutting down node: {self.self_node_id.long_name()} "
-            f"for cluster  [{self._config.cluster_id}]"
-        )
-        if self._server is not None:
-            await self._ticker.stop()
-
-            self._server.close()
-            await self._server.wait_closed()
-            self._server_task = None
+        await self.close()
 
     def self_node_state(self) -> NodeState:
         return self._cluster_state.node_state_or_default(self._config.node_id)

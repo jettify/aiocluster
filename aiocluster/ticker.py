@@ -8,12 +8,14 @@ class Ticker:
         corofunc,
         interval: float,
         timeout_func: Callable[[float, float, float], float] | None = None,
+        on_error: Callable[[Exception], None] | None = None,
     ) -> None:
         self._interval = interval
         self._ticker_task = None
         self._closing = False
         self._ticker = corofunc
         self._timout_func = timeout_func or simple_timeout
+        self._on_error = on_error
 
     @property
     def closed(self) -> bool:
@@ -29,9 +31,10 @@ class Ticker:
             try:
                 await self._ticker()
             except Exception as e:
-                # TODO: redo handling exceptions
-                print(e)
-                raise e
+                if self._on_error is not None:
+                    self._on_error(e)
+                else:
+                    raise
 
             t_stop = loop.time()
             t = self._timout_func(self._interval, t_start, t_stop)

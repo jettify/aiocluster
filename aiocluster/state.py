@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from collections.abc import Generator
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -186,11 +187,29 @@ class NodeState:
             if v.version > floor_version:
                 yield (k, v)
 
-    def apply_delta(self, node_delta: NodeDelta, ts: datetime | None = None) -> None:
+    def apply_delta(
+        self,
+        node_delta: NodeDelta,
+        ts: datetime | None = None,
+        on_key_change: Callable[
+            [NodeId, str, VersionedValue | None, VersionedValue], None
+        ]
+        | None = None,
+    ) -> None:
         now = ts if ts is not None else utc_now()
-        curren_max_version = self.max_version
+        if node_delta.last_gc_version > self.last_gc_version:
+            self.last_gc_version = node_delta.last_gc_version
+            # Drop keys that were GC'd by the sender.
+            self.key_values = {
+                k: v
+                for k, v in self.key_values.items()
+                if v.version > self.last_gc_version
+            }
         for kv_update in node_delta.key_values:
-            if kv_update.version <= curren_max_version:
+            if kv_update.version <= self.max_version:
+                continue
+            existing = self.get_versioned(kv_update.key)
+            if existing is not None and existing.version >= kv_update.version:
                 continue
 
             if (
@@ -206,7 +225,12 @@ class NodeState:
                 kv_update.status,
                 now,
             )
+            old_vv = existing
             self.set_versioned(kv_update.key, vv)
+            if on_key_change is not None:
+                on_key_change(self.node, kv_update.key, old_vv, vv)
+        if node_delta.max_version is not None:
+            self.max_version = max(self.max_version, node_delta.max_version)
 
     def _prepart_node(self, node_delta: NodeDelta) -> bool:
         if node_delta.from_version_excluded > self.max_version:
@@ -283,12 +307,19 @@ class ClusterState:
     def remove_node(self, node_id: NodeId) -> None:
         self._node_states.pop(node_id, None)
 
-    def apply_delta(self, delta: Delta, ts: datetime | None = None) -> None:
+    def apply_delta(
+        self,
+        delta: Delta,
+        ts: datetime | None = None,
+        on_key_change: Callable[
+            [NodeId, str, VersionedValue | None, VersionedValue], None
+        ]
+        | None = None,
+    ) -> None:
         now = ts if ts is not None else utc_now()
         for nd in delta.node_deltas:
-            ns = self._node_states.get(nd.node_id)
-            if ns is not None:
-                ns.apply_delta(nd, now)
+            ns = self._node_states.setdefault(nd.node_id, NodeState(nd.node_id))
+            ns.apply_delta(nd, now, on_key_change=on_key_change)
 
     def compute_digest(self, scheduled_for_deletion: set[NodeId]) -> Digest:
         return Digest(

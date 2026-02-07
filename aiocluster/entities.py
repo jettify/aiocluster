@@ -99,6 +99,10 @@ class Config:
         default_factory=FailureDetectorConfig,
     )
     max_payload_size: int = 65_507
+    connect_timeout: float = 3.0
+    read_timeout: float = 3.0
+    write_timeout: float = 3.0
+    max_concurrent_gossip: int = 32
 
 
 @dataclass(frozen=True, eq=True, slots=True)
