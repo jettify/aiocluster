@@ -23,4 +23,3 @@ async def test_start_stop():
     cluster = ac.Cluster(config, initial_key_values={"cluster": "1"})
     async with cluster:
         await asyncio.sleep(0)
-        await cluster.shutdown()

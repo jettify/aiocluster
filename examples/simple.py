@@ -37,10 +37,6 @@ async def main():
     async with cluster1, cluster2, cluster3:
         await asyncio.sleep(10)
 
-        await cluster1.shutdown()
-        await cluster2.shutdown()
-        await cluster3.shutdown()
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
