@@ -7,6 +7,8 @@ import pytest
 
 from aiocluster import FailureDetectorConfig
 from aiocluster import NodeId
+from aiocluster.entities import FailureDetectorConfig
+from aiocluster.entities import NodeId
 from aiocluster.failure_detector import BoundedArrayStats
 from aiocluster.failure_detector import FailureDetector
 from aiocluster.failure_detector import SamplingWindow
@@ -126,3 +128,50 @@ def test_failure_detector(rng: Random) -> None:
     assert len(removed_nodes) == 3
     assert len(fd.dead_nodes()) == 0
     assert len(fd.live_nodes()) == 0
+
+
+def test_bounded_array_stats_rollover_and_clear() -> None:
+    stats = BoundedArrayStats(capacity=2)
+    stats.append(1.0)
+    stats.append(2.0)
+    stats.append(3.0)
+
+    assert len(stats) == 2
+    assert stats.sum() == 5.0
+
+    stats.clear()
+    assert len(stats) == 0
+    assert stats.sum() == 0.0
+
+
+def test_sampling_window_respects_max_interval() -> None:
+    sw = SamplingWindow(
+        window_size=2,
+        max_interval=timedelta(seconds=1),
+        prior_interval=timedelta(seconds=1),
+    )
+    t0 = datetime(2024, 1, 1, 0, 0, 0)
+    sw.report_heartbeat(ts=t0)
+    sw.report_heartbeat(ts=t0 + timedelta(seconds=2))
+
+    assert sw.phi(ts=t0 + timedelta(seconds=2)) is None
+
+    sw.report_heartbeat(ts=t0 + timedelta(seconds=2, milliseconds=500))
+    phi = sw.phi(ts=t0 + timedelta(seconds=3))
+    assert phi is not None
+
+
+def test_failure_detector_garbage_collect_and_scheduled_nodes() -> None:
+    cfg = FailureDetectorConfig(dead_node_grace_period=timedelta(seconds=10))
+    fd = FailureDetector(cfg)
+    node_id = NodeId("n1", 0, ("localhost", 7001))
+
+    now = datetime(2024, 1, 1, 0, 0, 0)
+    fd.report_heartbeat(node_id, ts=now)
+    fd.update_node_liveness(node_id, ts=now)
+
+    scheduled = fd.scheduled_for_deletion_nodes(ts=now + timedelta(seconds=5))
+    assert node_id in scheduled
+
+    removed = fd.garbage_collect(ts=now + timedelta(seconds=11))
+    assert removed == [node_id]
