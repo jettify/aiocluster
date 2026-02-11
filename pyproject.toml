@@ -5,13 +5,13 @@ description = "aiocluster"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = ["protobuf>=6.33.4"]
-license = { file = "LICENSE" }
+license = "Apache-2.0"
+license-files = ["LICENSE*"]
 keywords = ["gossip", "chitchat", "aiocluster", "ScuttleButt"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Framework :: AsyncIO",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3",
   "Topic :: System :: Distributed Computing",
 ]
@@ -31,7 +31,7 @@ dev = [
 ]
 
 [project.optional-dependencies]
-build = ["uv~=0.7.12"]
+build = ["uv~=0.9.6"]
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
