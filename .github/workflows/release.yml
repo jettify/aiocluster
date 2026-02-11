@@ -90,10 +90,8 @@ jobs:
       - name: Smoke Test Artifacts
         run: |
           uv venv
-          source .venv/bin/activate
-          python -m pip install --upgrade pip
-          python -m pip install dist/*.whl
-          python -c "import aiocluster"
+          uv pip install --python .venv/bin/python dist/*.whl
+          .venv/bin/python -c "import aiocluster"
 
       - name: Publish to PyPI
         env:
