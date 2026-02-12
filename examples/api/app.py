@@ -1,3 +1,11 @@
+# /// script
+# dependencies = [
+#   "aiocluster",
+#   "fastapi",
+#   "uvicorn",
+# ]
+# ///
+
 import asyncio
 from collections.abc import Sequence
 from contextlib import asynccontextmanager
