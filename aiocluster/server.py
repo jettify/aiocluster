@@ -32,10 +32,28 @@ from .ticker import Ticker
 from .utils import add_msg_size
 from .utils import decode_msg_size
 
-__all__ = ("Cluster", "ClusterSnapshot")
+__all__ = ("Cluster", "ClusterSnapshot", "HookStats")
 
-KeyChangeCallback = Callable[[NodeId, str, VersionedValue | None, VersionedValue], None]
-NodeEventCallback = Callable[[NodeId], None]
+HookCallback = Callable[..., Awaitable[None]]
+KeyChangeCallback = Callable[
+    [NodeId, str, VersionedValue | None, VersionedValue], Awaitable[None]
+]
+NodeEventCallback = Callable[[NodeId], Awaitable[None]]
+
+
+@dataclass(frozen=True, slots=True)
+class HookStats:
+    enqueued: int
+    processed: int
+    dropped: int
+    errors: int
+    queue_size: int
+
+
+@dataclass(frozen=True, slots=True)
+class _HookEvent:
+    callbacks: tuple[HookCallback, ...]
+    args: tuple[object, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +97,17 @@ class Cluster:
         self._on_node_join_callbacks: list[NodeEventCallback] = []
         self._on_node_leave_callbacks: list[NodeEventCallback] = []
         self._on_key_change_callbacks: list[KeyChangeCallback] = []
+        if self._config.hook_queue_maxsize <= 0:
+            msg = "hook_queue_maxsize must be > 0"
+            raise ValueError(msg)
+        self._hook_queue: asyncio.Queue[_HookEvent | None] = asyncio.Queue(
+            maxsize=self._config.hook_queue_maxsize
+        )
+        self._hook_worker_task: asyncio.Task[None] | None = None
+        self._hook_enqueued = 0
+        self._hook_processed = 0
+        self._hook_dropped = 0
+        self._hook_errors = 0
         self._started = False
         self._closing = False
         self._gossip_semaphore = asyncio.Semaphore(
@@ -119,6 +148,16 @@ class Cluster:
                 await self._server_task
             self._server_task = None
         self._server = None
+        await self._stop_hook_worker()
+
+    def hook_stats(self) -> HookStats:
+        return HookStats(
+            enqueued=self._hook_enqueued,
+            processed=self._hook_processed,
+            dropped=self._hook_dropped,
+            errors=self._hook_errors,
+            queue_size=self._hook_queue.qsize(),
+        )
 
     def snapshot(self) -> ClusterSnapshot:
         return ClusterSnapshot(
@@ -176,8 +215,10 @@ class Cluster:
         old_vv: VersionedValue | None,
         new_vv: VersionedValue,
     ) -> None:
-        for cb in self._on_key_change_callbacks:
-            cb(node_id, key, old_vv, new_vv)
+        self._enqueue_hook_event(
+            callbacks=tuple(self._on_key_change_callbacks),
+            args=(node_id, key, old_vv, new_vv),
+        )
 
     def _maybe_emit_key_change(
         self,
@@ -198,12 +239,81 @@ class Cluster:
             self._emit_key_change(self.self_node_id, key, old_vv, new_vv)
 
     def _emit_node_join(self, node_id: NodeId) -> None:
-        for cb in self._on_node_join_callbacks:
-            cb(node_id)
+        self._enqueue_hook_event(
+            callbacks=tuple(self._on_node_join_callbacks),
+            args=(node_id,),
+        )
 
     def _emit_node_leave(self, node_id: NodeId) -> None:
-        for cb in self._on_node_leave_callbacks:
-            cb(node_id)
+        self._enqueue_hook_event(
+            callbacks=tuple(self._on_node_leave_callbacks),
+            args=(node_id,),
+        )
+
+    def _enqueue_hook_event(
+        self, callbacks: tuple[HookCallback, ...], args: tuple[object, ...]
+    ) -> None:
+        if not callbacks:
+            return
+        event = _HookEvent(callbacks=callbacks, args=args)
+        try:
+            self._hook_queue.put_nowait(event)
+            self._hook_enqueued += 1
+        except asyncio.QueueFull:
+            self._hook_dropped += 1
+
+    async def _run_hook_worker(self) -> None:
+        while True:
+            hook_event = await self._hook_queue.get()
+            if hook_event is None:
+                self._hook_queue.task_done()
+                return
+            try:
+                for callback in hook_event.callbacks:
+                    try:
+                        await callback(*hook_event.args)
+                    except Exception as exc:
+                        self._hook_errors += 1
+                        self._log.exception(f"Hook callback error: {exc}")
+            finally:
+                self._hook_processed += 1
+                self._hook_queue.task_done()
+
+    async def _stop_hook_worker(self) -> None:
+        if self._hook_worker_task is None:
+            return
+        task = self._hook_worker_task
+        if self._config.drain_hooks_on_shutdown:
+            try:
+                await asyncio.wait_for(
+                    self._hook_queue.join(),
+                    timeout=self._config.hook_shutdown_timeout,
+                )
+            except TimeoutError:
+                self._hook_dropped += self._hook_queue.qsize()
+        else:
+            self._hook_dropped += self._hook_queue.qsize()
+
+        if task.done():
+            with suppress(asyncio.CancelledError):
+                await task
+            self._hook_worker_task = None
+            return
+
+        if self._config.drain_hooks_on_shutdown:
+            with suppress(asyncio.QueueFull):
+                self._hook_queue.put_nowait(None)
+            try:
+                await asyncio.wait_for(task, timeout=self._config.hook_shutdown_timeout)
+            except TimeoutError:
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
+        else:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+        self._hook_worker_task = None
 
     def _on_ticker_error(self, exc: Exception) -> None:
         self._log.exception(f"Ticker error: {exc}")
@@ -517,6 +627,7 @@ class Cluster:
         )
         self._server = server
         self._server_task = asyncio.create_task(self._serve())
+        self._hook_worker_task = asyncio.create_task(self._run_hook_worker())
         self._ticker.start()
 
     async def shutdown(self) -> None:

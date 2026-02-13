@@ -107,6 +107,9 @@ class Config:
     read_timeout: float = 3.0
     write_timeout: float = 3.0
     max_concurrent_gossip: int = 32
+    hook_queue_maxsize: int = 10_000
+    drain_hooks_on_shutdown: bool = True
+    hook_shutdown_timeout: float = 5.0
     tls_server_context: ssl.SSLContext | None = None
     tls_client_context: ssl.SSLContext | None = None
     tls_server_hostname: str | None = None
