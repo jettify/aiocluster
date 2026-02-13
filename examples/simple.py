@@ -1,3 +1,8 @@
+# /// script
+# dependencies = [
+#   "aiocluster",
+# ]
+# ///
 import asyncio
 import logging
 
