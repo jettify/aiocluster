@@ -1,6 +1,6 @@
 [project]
 name = "aiocluster"
-version = "1.0.1"
+version = "1.0.2"
 description = "aiocluster"
 readme = "README.md"
 requires-python = ">=3.13"

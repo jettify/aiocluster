@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.2 (2026-02-13)
+
+### Bug Fixes
+
+- Remove unused code and trigger release.
+  ([`1eb9e0b`](https://github.com/jettify/aiocluster/commit/1eb9e0bc9e1fc2fc5cedde4657fedc738637ffa9))
+
+
 ## v1.0.1 (2026-02-13)
 
 ### Bug Fixes
