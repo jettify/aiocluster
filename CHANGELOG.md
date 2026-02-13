@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.1.0 (2026-02-13)
+
+### Features
+
+- Make hooks, async functions.
+  ([`27617e5`](https://github.com/jettify/aiocluster/commit/27617e5a1c25d0100d84b49347815542fb3a33d7))
+
+
 ## v1.0.2 (2026-02-13)
 
 ### Bug Fixes
