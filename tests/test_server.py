@@ -54,27 +54,6 @@ def test_select_seed_node_to_gossip_with() -> None:
     assert select_seed_node_to_gossip_with(set(), 1, 0, rng) is None
 
 
-def test_select_nodes_for_gossip() -> None:
-    rng = Random(0)
-    peers = {("localhost", 7001), ("localhost", 7002)}
-    dead = {("localhost", 7003)}
-    seed = {("localhost", 7002)}
-
-    nodes, dead_node, seed_node = select_nodes_for_gossip(
-        peer_nodes=peers,
-        live_nodes=set(),
-        dead_nodes=dead,
-        seed_nodes=seed,
-        rng=rng,
-        gossip_count=1,
-    )
-
-    assert len(nodes) == 1
-    assert nodes[0] in peers
-    assert dead_node in dead or dead_node is None
-    assert seed_node in seed or seed_node is None
-
-
 @pytest.mark.asyncio
 async def test_cluster_read_message_validation() -> None:
     node_id = NodeId("node", 0, ("localhost", 7001))

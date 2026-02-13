@@ -52,12 +52,6 @@ class Ticker:
         self._ticker_task = None
 
 
-def create_ticker(corofunc: Callable[[], Awaitable[None]], interval: float) -> Ticker:
-    ticker = Ticker(corofunc, interval)
-    ticker.start()
-    return ticker
-
-
 def simple_timeout(interval: float, tick_start: float, tick_stop: float) -> float:
     t = max(interval - (tick_stop - tick_start), 0)
     return t
