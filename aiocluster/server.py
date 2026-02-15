@@ -32,7 +32,13 @@ from .ticker import Ticker
 from .utils import add_msg_size
 from .utils import decode_msg_size
 
-__all__ = ("Cluster", "ClusterSnapshot", "HookStats")
+__all__ = (
+    "Cluster",
+    "ClusterSnapshot",
+    "HookStats",
+    "NodeEventCallback",
+    "KeyChangeCallback",
+)
 
 HookCallback = Callable[..., Awaitable[None]]
 KeyChangeCallback = Callable[

@@ -21,8 +21,8 @@ from pydantic import BaseModel
 from aiocluster import Cluster
 from aiocluster import Config
 from aiocluster import NodeId
-from aiocluster.entities import VersionedValue
-from aiocluster.state import NodeState
+from aiocluster import NodeState
+from aiocluster import VersionedValue
 
 
 class NodeStateView(BaseModel):

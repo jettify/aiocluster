@@ -5,7 +5,17 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/aiocluster.svg)](https://pypi.org/project/aiocluster)
 [![PyPI Version](https://img.shields.io/pypi/v/aiocluster.svg)](https://pypi.python.org/pypi/aiocluster)
 
-**aiocluster** is a Python 3.11+ module for distributed systems management, enabling cluster membership tracking, failure detection, configuration sharing, and metadata management. It facilitates scalable and fault-tolerant application sharding through robust cluster coordination capabilities.
+**aiocluster** is a Python 3.11+ library for building applications that run as a coordinated cluster. It helps services discover each other, keep shared state in sync, and handle node outages without custom coordination code.
+
+## Features
+
+- Easy cluster startup with seed nodes and a shared cluster ID.
+- Automatic node discovery so members can join and leave dynamically.
+- Built-in health monitoring to detect unreachable nodes.
+- Gossip-based state sharing for lightweight cluster-wide metadata.
+- Async-first API designed for `asyncio` applications.
+- Hooks for reacting to cluster events in your application logic.
+- Support for resilient, horizontally scaled service deployments.
 
 ## References
 
